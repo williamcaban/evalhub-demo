@@ -1,0 +1,19 @@
+# AIME 2024 — American Invitational Mathematics Examination
+#
+# 30 competition math problems, generative scoring (pass@k, avg@n).
+# CONFIRMED WORKING via lighteval adapter (2026-08-13).
+# Expected result for Qwen3-8B-FP8: pass@k=0 (competition math requires stronger models).
+#
+# Usage:
+#   evalhub eval run --config evals/lighteval-aime24.yaml --wait
+
+name: qwen3-lighteval-aime24
+experiment:
+  name: evalhub-lighteval-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: aime24
+    provider_id: lighteval
+    parameters: {}

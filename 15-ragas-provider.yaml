@@ -1,0 +1,126 @@
+# Register RAGAS as a system-level provider with stable string ID "ragas".
+#
+# RAGAS: Retrieval Augmented Generation Assessment
+# Evaluates RAG pipeline quality using faithfulness, relevancy, precision,
+# recall, and other metrics. Requires an OpenAI-compatible LLM judge endpoint.
+#
+# How it works:
+#   1. Apply this file as cluster-admin.
+#   2. Apply 04-evalhub-cr.yaml (includes "ragas" in spec.providers).
+#   3. Operator copies ConfigMap to project1; EvalHub registers as id: ragas.
+#
+# Usage:
+#   oc apply -f 15-ragas-provider.yaml    # cluster-admin
+#   uv run evalhub providers list           # verify: "ragas" with 2 benchmarks
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trustyai-service-operator-evalhub-provider-ragas
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/part-of: trustyai
+    app.opendatahub.io/trustyai: "true"
+    platform.opendatahub.io/part-of: trustyai
+    trustyai.opendatahub.io/evalhub-provider-name: ragas
+    trustyai.opendatahub.io/evalhub-provider-type: system
+data:
+  ragas.yaml: |
+    id: ragas
+    name: RAGAS
+    title: RAGAS
+    description: >
+      Retrieval Augmented Generation Assessment — evaluates RAG pipeline quality
+      using metrics like faithfulness, answer relevancy, context precision/recall,
+      and more. The judge LLM is the same OpenAI-compatible endpoint as the
+      model under evaluation (no external API key required).
+    type: community
+
+    agent:
+      evaluates:
+        - rag_quality
+        - faithfulness
+        - relevancy
+        - context_precision
+      recommended_when:
+        - "User wants to evaluate a RAG pipeline"
+        - "User asks about faithfulness, answer relevancy, or context precision"
+        - "User mentions RAGAS metrics"
+        - "Pre-deployment RAG quality gate"
+      target_type: model
+      summary: "RAG pipeline quality evaluation — faithfulness, relevancy, precision, recall"
+      complements:
+        - lm-evaluation-harness
+        - inspect
+      hints:
+        - "The model endpoint is used as the LLM judge — no external API key needed"
+        - "Provide test data with question/answer/context triples via data_path"
+        - "ragas_rag_default is the fast starting point; ragas_rag_full runs all metrics"
+        - "faithfulness score: 1.0 = answer fully grounded in context (higher is better)"
+
+    # ⚠️  KNOWN ISSUE (as of 2026-08-14): The RAGAS library version in
+    #    quay.io/evalhub/community-ragas:latest is newer than the adapter expects.
+    #    AnswerRelevancy(llm=llm, embeddings=emb) raises:
+    #    "Collections metrics only support modern InstructorLLM"
+    #    Fix: update /app/main.py in eval-hub-contrib to use InstructorLLM factory.
+    #    Dataset path: /bundled-data/dataset.jsonl (use data_path parameter).
+
+    runtime:
+      k8s:
+        image: quay.io/evalhub/community-ragas:latest
+        entrypoint:
+          - python
+          - main.py
+        cpu_request: 100m
+        memory_request: 128Mi
+        cpu_limit: 1000m
+        memory_limit: 2Gi
+      local:
+        command: python tests/features/test_data/runtime/main.py
+
+    benchmarks:
+      - id: ragas_rag_default
+        name: RAG Default Suite
+        description: >
+          Default RAG evaluation: answer relevancy, context precision, faithfulness,
+          context recall, and answer correctness.
+        category: rag_evaluation
+        metrics:
+          - answer_relevancy
+          - context_precision
+          - faithfulness
+          - context_recall
+          - answer_correctness
+        tags: [ragas, rag, default]
+        primary_score:
+          metric: faithfulness
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.5
+
+      - id: ragas_rag_full
+        name: RAG Full Suite
+        description: >
+          Comprehensive RAG evaluation with all available RAGAS metrics including
+          semantic similarity, factual correctness, noise sensitivity, and
+          response groundedness.
+        category: rag_evaluation
+        metrics:
+          - answer_relevancy
+          - semantic_similarity
+          - context_precision
+          - faithfulness
+          - context_recall
+          - context_entity_recall
+          - answer_accuracy
+          - context_relevance
+          - factual_correctness
+          - noise_sensitivity
+          - response_groundedness
+        tags: [ragas, rag, comprehensive]
+        primary_score:
+          metric: faithfulness
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.5

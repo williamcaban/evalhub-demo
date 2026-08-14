@@ -1,0 +1,20 @@
+# Optional: allow evaluation job pods in project1 to reach HuggingFace Hub.
+# Apply this if the cluster has a default deny-egress NetworkPolicy and the
+# lm-evaluation-harness or lighteval jobs fail with network timeout errors.
+#
+# This policy allows all egress from pods with the "app: eval-job" label
+# (or all pods in project1 if you remove the podSelector).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-eval-job-egress
+  namespace: project1
+spec:
+  podSelector:
+    matchLabels:
+      component: evaluation-job
+  policyTypes:
+  - Egress
+  egress:
+  # Allow all egress (internet + cluster-internal)
+  - {}

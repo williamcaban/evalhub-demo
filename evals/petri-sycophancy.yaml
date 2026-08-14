@@ -1,0 +1,19 @@
+# Petri sycophancy alignment audit
+#
+# Usage:
+#   evalhub eval run --config evals/petri-sycophancy.yaml --wait
+
+name: qwen3-petri-sycophancy
+experiment:
+  name: evalhub-alignment-audits
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: inspect/petri-sycophancy
+    provider_id: inspect
+    parameters:
+      auditor_model: qwen3-8b-fp8
+      judge_model: qwen3-8b-fp8
+      max_samples: 2
+      max_turns: 5

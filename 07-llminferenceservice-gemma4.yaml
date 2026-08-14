@@ -1,0 +1,85 @@
+# LLMInferenceService — RedHatAI/gemma-4-26B-A4B-it-NVFP4
+#
+# Docs:
+#   https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/
+#   deploy_models_using_distributed_inference_with_llm-d/
+#   enabling-authentication-and-authorization-for-llm-inference-service_distributed-inference
+#
+# Model: https://huggingface.co/RedHatAI/gemma-4-26B-A4B-it-NVFP4
+#   Gemma 4 26B A4B — NVFP4 quantized (~75% smaller than BF16)
+#   Architecture: Gemma4ForConditionalGeneration (text + image → text)
+#   Quantization: FP4 weights + FP4 activations (linear layers only)
+#   Recommended GPU: 1× A100-40GB or larger
+#
+# Prerequisites:
+#   1. Accept the Gemma 4 license at https://huggingface.co/google/gemma-4-26B-A4B-it
+#   2. Create the hf-token Secret:
+#        oc create secret generic hf-token -n project1 \
+#          --from-literal=HF_TOKEN=<your-hf-token>
+#   3. Red Hat Connectivity Link configured (required for JWT auth)
+---
+apiVersion: serving.kserve.io/v1alpha2
+kind: LLMInferenceService
+metadata:
+  name: gemma4-nvfp4
+  namespace: project1
+  annotations:
+    # Authentication enabled by default when Red Hat Connectivity Link is configured.
+    # This annotation makes the intent explicit and re-enables auth if previously disabled.
+    security.opendatahub.io/enable-auth: "true"
+spec:
+  model:
+    # HuggingFace URI — llm-d downloads directly from HF Hub using hf-token Secret
+    uri: hf://RedHatAI/gemma-4-26B-A4B-it-NVFP4
+    name: RedHatAI/gemma-4-26B-A4B-it-NVFP4
+
+  router:
+    # Empty stanzas use cluster defaults:
+    #   route:     → OpenShift Route via the default inference gateway
+    #   gateway:   → openshift-ai-inference Gateway (created by Red Hat Connectivity Link)
+    #   scheduler: → default Endpoint Picker scheduler
+    route: {}
+    gateway: {}
+    scheduler: {}
+
+    template:
+      containers:
+      - name: main
+        env:
+        # HuggingFace token for downloading gated Gemma 4 weights
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: hf-token
+              key: HF_TOKEN
+
+        # vLLM serving arguments for Gemma 4 NVFP4
+        # --max-model-len 32768          Recommended context window (fits on single A100)
+        # --gpu-memory-utilization 0.90  Leave 10% headroom for KV cache and activations
+        # --enable-auto-tool-choice      Enable function calling / tool-call API
+        # --reasoning-parser gemma4      Extract thinking tokens from Gemma 4 output
+        # --tool-call-parser gemma4      Parse Gemma 4 native tool-call format
+        # --limit-mm-per-prompt          Cap multimodal inputs per request
+        #   Tip: use {"image": 0, "audio": 0} for text-only workloads to free GPU memory
+        - name: VLLM_ARGS
+          value: >-
+            --max-model-len 32768
+            --gpu-memory-utilization 0.90
+            --enable-auto-tool-choice
+            --reasoning-parser gemma4
+            --tool-call-parser gemma4
+            --limit-mm-per-prompt {"image": 4, "audio": 1}
+
+        resources:
+          requests:
+            cpu: "4"
+            memory: 32Gi
+            # Gemma 4 26B at NVFP4 ≈ 13 GB weights + KV cache overhead.
+            # Single A100-40GB is sufficient for max-model-len 32768.
+            # For longer contexts or higher throughput, increase to 2 GPUs
+            # and add parallelism.tensor: 2 in spec.
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "8"
+            memory: 64Gi
+            nvidia.com/gpu: "1"

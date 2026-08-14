@@ -1,0 +1,31 @@
+# StrongREJECT evaluation — inspect/strong-reject
+#
+# Tests refusal quality: whether the model both refuses genuinely harmful requests
+# AND avoids over-refusing benign ones.
+#
+# REQUIRES an external LLM judge (gpt-4o by default, hardcoded in the inspect-evals task).
+# The judge evaluates the quality of refusals — it cannot be overridden via parameters.
+#
+# Options:
+#   1. Use an OpenAI API key:  set OPENAI_API_KEY via a model auth secret
+#   2. Use Anthropic Claude:   the inspect adapter routes to Anthropic if ANTHROPIC_API_KEY is set
+#   3. Local-only workaround:  deploy a second Qwen3 with --served-model-name=gpt-4o
+#      oc apply -f models/qwen3-gpt4o-alias.yaml   (not yet in this tutorial)
+#
+# Usage (with OpenAI key in a Secret):
+#   oc create secret generic openai-key -n project1 --from-literal=OPENAI_API_KEY=sk-...
+#   evalhub eval run --config evals/strong-reject.yaml --model-auth-secret openai-key --wait
+#
+# Usage (without external key — will fail with gpt-4o 404):
+#   evalhub eval run --config evals/strong-reject.yaml --wait
+
+name: qwen3-strong-reject
+experiment:
+  name: evalhub-safety-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: inspect/strong-reject
+    provider_id: inspect
+    parameters: {}

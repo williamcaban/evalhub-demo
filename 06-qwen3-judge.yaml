@@ -1,0 +1,92 @@
+# Qwen3-8B-FP8 judge model for project1
+#
+# Deploys the Red Hat AI Catalog ModelCar image via KServe InferenceService.
+# Used as the judge/auditor model for Inspect AI Petri alignment audits.
+#
+# OCI image: registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5
+# GPU sizing: 1× NVIDIA L4 (23 GB) or A10G (24 GB)
+#   ~10 GB weights + 13 GB KV cache at max-model-len=32768
+#
+# Internal URL (after deploy):
+#   http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080
+#
+# Notes:
+#   - security.opendatahub.io/enable-auth: "false" — no token required for internal eval jobs
+#   - No opendatahub.io/hardware-profile-name annotation — causes admission webhook failure
+#     on this cluster; GPU resources declared directly in spec.predictor.model.resources
+#   - Use port 8080 (not 80) in model URLs — KServe predictor is a headless service;
+#     the actual vLLM container listens on 8080
+---
+apiVersion: serving.kserve.io/v1alpha1
+kind: ServingRuntime
+metadata:
+  name: qwen3-8b-fp8
+  namespace: project1
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    opendatahub.io/apiProtocol: REST
+    opendatahub.io/template-name: vllm-cuda-runtime-template
+spec:
+  multiModel: false
+  supportedModelFormats:
+  - name: vLLM
+    version: "1"
+    autoSelect: true
+  containers:
+  - name: kserve-container
+    image: registry.redhat.io/rhaiis/vllm-cuda-rhel9:3.2.4
+    command:
+    - python
+    - -m
+    - vllm.entrypoints.openai.api_server
+    args:
+    - --port=8080
+    - --model=/mnt/models
+    - "--served-model-name={{.Name}}"
+    env:
+    - name: HF_HOME
+      value: /tmp/hf_home
+    ports:
+    - containerPort: 8080
+      protocol: TCP
+---
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: qwen3-8b-fp8
+  namespace: project1
+  labels:
+    opendatahub.io/dashboard: "true"
+  annotations:
+    # No opendatahub.io/hardware-profile-name — intentionally omitted.
+    # Adding this annotation triggers an admission webhook that rejects the resource
+    # on this cluster. GPU resources are declared directly below.
+    modelFormat: vLLM
+    opendatahub.io/model-type: generative
+    security.opendatahub.io/enable-auth: "false"
+    serving.kserve.io/deploymentMode: Standard
+spec:
+  predictor:
+    minReplicas: 1
+    maxReplicas: 1
+    model:
+      modelFormat:
+        name: vLLM
+      runtime: qwen3-8b-fp8
+      storageUri: oci://registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5
+      args:
+      - --dtype=auto
+      - --max-model-len=32768
+      - --gpu-memory-utilization=0.90
+      - --enable-auto-tool-choice
+      - --tool-call-parser=hermes
+      resources:
+        requests:
+          cpu: "2"
+          memory: 8Gi
+          nvidia.com/gpu: "1"
+        limits:
+          cpu: "8"
+          memory: 24Gi
+          nvidia.com/gpu: "1"

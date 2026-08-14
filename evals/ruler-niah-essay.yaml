@@ -1,0 +1,19 @@
+# RULER NIAH Single (Essay Haystack) — smoke test
+# 3 samples at 4096 tokens — completes in ~5 min on L4
+#
+# Usage:
+#   evalhub eval run --config evals/ruler-niah-essay.yaml --wait
+
+name: qwen3-ruler-niah-essay
+experiment:
+  name: evalhub-long-context-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: niah-single-essay
+    provider_id: ruler
+    parameters:
+      num_samples: 3
+      context_lengths: [4096]
+      tokenizer_path: Qwen/Qwen3-8B

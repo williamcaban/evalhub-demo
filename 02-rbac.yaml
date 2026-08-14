@@ -1,0 +1,58 @@
+---
+# ServiceAccount for EvalHub CLI/SDK access
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: evalhub-user-sa
+  namespace: project1
+---
+# Role granting access to EvalHub pseudo-resources.
+# EvalHub's auth middleware does SubjectAccessReview checks against these resources
+# for each API endpoint:
+#   /api/v1/evaluations/providers  → trustyai.opendatahub.io/providers
+#   /api/v1/evaluations/jobs       → trustyai.opendatahub.io/evaluations
+#                                  → mlflow.kubeflow.org/experiments  (on POST)
+#   /api/v1/evaluations/collections → trustyai.opendatahub.io/collections
+#   /api/v1/evaluations/jobs/*/events → trustyai.opendatahub.io/status-events
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: evalhub-user-role
+  namespace: project1
+rules:
+- apiGroups:
+  - trustyai.opendatahub.io
+  resources:
+  - providers
+  - evaluations
+  - collections
+  - status-events
+  verbs:
+  - get
+  - list
+  - create
+  - update
+  - delete
+- apiGroups:
+  - mlflow.kubeflow.org
+  resources:
+  - experiments
+  verbs:
+  - get
+  - list
+  - create
+---
+# RoleBinding: bind the SA to the role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: evalhub-user-rb
+  namespace: project1
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: evalhub-user-role
+subjects:
+- kind: ServiceAccount
+  name: evalhub-user-sa
+  namespace: project1

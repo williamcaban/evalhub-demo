@@ -1,0 +1,233 @@
+# Register RULER as a system-level provider with stable string ID "ruler".
+#
+# RULER: What's the Real Context Size of Your LLM? (NVIDIA)
+# Tests LLMs across 13 synthetic tasks at multiple context lengths.
+# No external dataset needed — context is generated synthetically.
+#
+# ⚠️  IMAGE STATUS: quay.io/evalhub/community-ruler:latest is not yet published.
+#    Eval jobs will fail with ImagePullBackOff until the image is available.
+#    Track: https://github.com/eval-hub/eval-hub-contrib (adapters/ruler)
+#
+# How it works:
+#   1. Apply this file as cluster-admin.
+#   2. Apply 04-evalhub-cr.yaml (includes "ruler" in spec.providers).
+#   3. Operator copies ConfigMap to project1; EvalHub registers as id: ruler.
+#
+# Usage:
+#   oc apply -f 14-ruler-provider.yaml    # cluster-admin
+#   uv run evalhub providers list           # verify: "ruler" with 13 benchmarks
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trustyai-service-operator-evalhub-provider-ruler
+  namespace: redhat-ods-applications
+  labels:
+    app.kubernetes.io/part-of: trustyai
+    app.opendatahub.io/trustyai: "true"
+    platform.opendatahub.io/part-of: trustyai
+    trustyai.opendatahub.io/evalhub-provider-name: ruler
+    trustyai.opendatahub.io/evalhub-provider-type: system
+data:
+  ruler.yaml: |
+    id: ruler
+    name: RULER
+    title: RULER
+    description: >
+      NVIDIA RULER long-context evaluation benchmark. Tests LLMs across 13
+      synthetic tasks spanning needle-in-a-haystack retrieval, variable
+      tracking, aggregation, and question answering at configurable context
+      lengths. No external dataset required — context is generated synthetically.
+    type: community
+
+    agent:
+      evaluates:
+        - long_context
+        - retrieval
+        - reasoning
+      recommended_when:
+        - "User wants to test long-context window capabilities"
+        - "User asks about needle-in-a-haystack or NIAH"
+        - "User wants to validate effective context size"
+        - "User mentions RULER benchmark"
+      target_type: model
+      summary: "Long-context evaluation across 13 synthetic tasks at multiple context lengths"
+      complements:
+        - lm-evaluation-harness
+        - inspect
+      hints:
+        - "Use num_samples: 3 and context_lengths: [4096] for a fast smoke test (~5 min)"
+        - "Full multi-length runs (4096/8192/16384) take 20–60 min depending on model speed"
+        - "Set tokenizer_path to a public HuggingFace model ID matching your model"
+        - "Metric is string_match_all (1.0 = perfect) or string_match_part for QA tasks"
+
+    runtime:
+      k8s:
+        image: quay.io/evalhub/community-ruler:latest
+        entrypoint:
+          - python
+          - main.py
+        cpu_request: 500m
+        memory_request: 1Gi
+        cpu_limit: 4000m
+        memory_limit: 8Gi
+      local:
+        command: python tests/features/test_data/runtime/main.py
+
+    benchmarks:
+      - id: niah-single-noise
+        name: NIAH Single (Noise Haystack)
+        description: Single needle/value pair hidden in random noise background.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.8
+
+      - id: niah-single-essay
+        name: NIAH Single (Essay Haystack)
+        description: Single needle/value pair hidden in Paul Graham essays.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.8
+
+      - id: niah-single-uuid
+        name: NIAH Single (UUID Values)
+        description: Single needle/UUID-value pair hidden in essay background.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.8
+
+      - id: niah-multikey
+        name: NIAH Multi-Key
+        description: Multiple distinct needle keys hidden in essay background.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: niah-needle-bg
+        name: NIAH Needle Background
+        description: Single needle with other needles used as background noise.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: niah-multikey-uuid
+        name: NIAH Multi-Key UUID
+        description: UUID keys and UUID values — hardest retrieval variant.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.5
+
+      - id: niah-multivalue
+        name: NIAH Multi-Value
+        description: Single key associated with multiple values in essay background.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: niah-multiquery
+        name: NIAH Multi-Query
+        description: Multiple queries each targeting a distinct needle/value pair.
+        category: needle_in_a_haystack
+        metrics: [string_match_all]
+        tags: [ruler, niah, retrieval, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: variable-tracking
+        name: Variable Tracking
+        description: Track chains of variable assignments and return the final value.
+        category: variable_tracking
+        metrics: [string_match_all]
+        tags: [ruler, tracking, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: common-words-extraction
+        name: Common Words Extraction
+        description: Identify the 10 most frequently appearing words in a long list.
+        category: aggregation
+        metrics: [string_match_all]
+        tags: [ruler, aggregation, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: frequency-words-extraction
+        name: Frequency Words Extraction
+        description: Find the three most frequent coded words in a Zipf-distributed list.
+        category: aggregation
+        metrics: [string_match_all]
+        tags: [ruler, aggregation, long_context]
+        primary_score:
+          metric: string_match_all
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.7
+
+      - id: qa-squad
+        name: QA — SQuAD
+        description: Long-context question answering with SQuAD passages as context.
+        category: question_answering
+        metrics: [string_match_part]
+        tags: [ruler, qa, squad, long_context]
+        primary_score:
+          metric: string_match_part
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.5
+
+      - id: qa-hotpotqa
+        name: QA — HotpotQA
+        description: Multi-hop long-context QA with HotpotQA passages.
+        category: question_answering
+        metrics: [string_match_part]
+        tags: [ruler, qa, hotpotqa, long_context]
+        primary_score:
+          metric: string_match_part
+          lower_is_better: false
+        pass_criteria:
+          threshold: 0.5

@@ -1,0 +1,19 @@
+# GSM8K — Grade School Math (Inspect AI)
+#
+# 8,500 math word problems requiring multi-step reasoning.
+# Self-scoring (no external judge). Confirmed working on this cluster.
+#
+# Usage:
+#   evalhub eval run --config evals/gsm8k.yaml --wait
+
+name: qwen3-gsm8k
+experiment:
+  name: evalhub-inspect-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: inspect/gsm8k
+    provider_id: inspect
+    parameters:
+      max_samples: 10

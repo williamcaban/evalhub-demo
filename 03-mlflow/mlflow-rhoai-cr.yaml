@@ -1,0 +1,39 @@
+## RHOAI 3.5 MLflow — Minimal deployment (SQLite + PVC artifact store)
+##
+## Doc reference:
+##   https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html-single/working_with_mlflow/index#install-and-configure-mlflow_working-with-mlflow
+##
+## Prerequisites:
+##   oc patch datasciencecluster default-dsc --type=merge \
+##     -p '{"spec":{"components":{"mlflowoperator":{"managementState":"Managed"}}}}'
+##
+## Notes:
+## - The MLflow resource is cluster-scoped (one instance per cluster).
+## - The operator always deploys MLflow resources into redhat-ods-applications.
+## - Internal cluster URL: https://mlflow.redhat-ods-applications.svc:8443/mlflow
+## - serveArtifacts: true is required for file-based (PVC) artifact storage.
+---
+apiVersion: mlflow.opendatahub.io/v1
+kind: MLflow
+metadata:
+  name: mlflow
+  namespace: redhat-ods-applications
+spec:
+  # SQLite backend on the PVC that the operator mounts at /mlflow
+  backendStoreUri: "sqlite:////mlflow/mlflow.db"
+
+  # File-based artifact store on the same PVC.
+  # artifactsDestination must use file:// when serveArtifacts is true.
+  artifactsDestination: "file:///mlflow/artifacts"
+
+  # serveArtifacts: true is required for file-based artifact storage.
+  # Clients log/retrieve artifacts through the MLflow server proxy (mlflow-artifacts:/).
+  serveArtifacts: true
+
+  # PVC for persistent storage. The operator names the PVC "mlflow-pvc".
+  storage:
+    accessModes:
+    - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi

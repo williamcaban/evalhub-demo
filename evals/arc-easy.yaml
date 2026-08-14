@@ -1,0 +1,19 @@
+# ARC Easy benchmark — lm-evaluation-harness
+#
+# Full dataset: 2376 samples, ~9 min on Qwen3-8B-FP8 / L4 GPU.
+# Confirmed results: acc=0.8342, acc_norm=0.8022
+#
+# Usage:
+#   evalhub eval run --config evals/arc-easy.yaml --wait
+
+name: qwen3-arc-easy
+experiment:
+  name: evalhub-lmeval-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: arc_easy
+    provider_id: lm_evaluation_harness
+    parameters:
+      tokenizer: Qwen/Qwen3-8B

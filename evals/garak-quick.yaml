@@ -1,0 +1,14 @@
+# Garak quick security smoke test — single DAN 11.0 probe (~2 min)
+#
+# Usage:
+#   evalhub eval run --config evals/garak-quick.yaml --wait
+
+name: qwen3-garak-quick
+experiment:
+  name: evalhub-security-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: quick
+    provider_id: garak

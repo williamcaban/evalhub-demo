@@ -1,0 +1,20 @@
+# RAGAS RAG Default Suite
+# Evaluates RAG pipeline quality: faithfulness, answer relevancy,
+# context precision/recall, answer correctness.
+# Uses the model endpoint as the LLM judge.
+#
+# Usage:
+#   evalhub eval run --config evals/ragas-rag-default.yaml --wait
+
+name: qwen3-ragas-default
+experiment:
+  name: evalhub-rag-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: ragas_rag_default
+    provider_id: ragas
+    parameters:
+      max_workers: 1
+      data_path: /bundled-data/dataset.jsonl

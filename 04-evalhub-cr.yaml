@@ -1,0 +1,50 @@
+apiVersion: trustyai.opendatahub.io/v1alpha1
+kind: EvalHub
+metadata:
+  name: evalhub
+  namespace: project1
+spec:
+  # Database: SQLite in-memory (no Secret required).
+  # For persistent deployments, use type: postgresql with a Secret.
+  database:
+    type: sqlite
+
+  # Providers to enable.
+  # The operator automatically copies matching provider ConfigMaps from
+  # redhat-ods-applications into project1 — no manual ConfigMap creation needed.
+  # Provider IDs use dashes (lm-evaluation-harness, not lm_evaluation_harness).
+  # Collections registered via operator ConfigMap — stable string IDs.
+  # Tenant collections created with `evalhub collections create` get UUIDs instead.
+  collections:
+  - combined-reasoning
+  - combined-knowledge
+  - combined-coding
+  - combined-safety-alignment
+  - garak-red-team
+  - guidellm-perf
+
+  providers:
+  - lighteval
+  - lm-evaluation-harness
+  - ibm-clear
+  - inspect
+  - garak
+  - ruler
+  - ragas
+  - guidellm
+
+  # MLflow integration.
+  # The operator already sets MLFLOW_TOKEN_PATH (projected SA token for auth),
+  # MLFLOW_CA_CERT_PATH (service CA for TLS), and MLFLOW_WORKSPACE=project1.
+  # We only need to set MLFLOW_TRACKING_URI to activate MLflow logging.
+  #
+  # The EvalHub controller also automatically creates:
+  #   - RoleBinding for the evalhub-service SA with the
+  #     trustyai-service-operator-evalhub-mlflow-access ClusterRole
+  #   → No manual MLflow RBAC is needed.
+  #
+  # MLflow auth: kubernetes-namespaced plugin using the projected SA token.
+  # MLflow workspace: project1 (matches the EvalHub CR namespace).
+  env:
+  - name: MLFLOW_TRACKING_URI
+    value: "https://mlflow.redhat-ods-applications.svc:8443/mlflow"

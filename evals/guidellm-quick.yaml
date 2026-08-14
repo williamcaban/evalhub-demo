@@ -1,0 +1,19 @@
+# GuideLLM quick performance snapshot — 5 requests, synthetic 256/128 token scenario
+# Confirms throughput, TTFT, and ITL against qwen3-8b-fp8 on L4 GPU.
+#
+# Usage:
+#   evalhub eval run --config evals/guidellm-quick.yaml --wait
+
+name: qwen3-guidellm-quick
+experiment:
+  name: evalhub-performance-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: quick_perf_test
+    provider_id: guidellm
+    parameters:
+      max_requests: 5
+      data: "prompt_tokens=256,output_tokens=128"
+      tokenizer: Qwen/Qwen3-8B

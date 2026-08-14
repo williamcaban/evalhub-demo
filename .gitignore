@@ -1,0 +1,26 @@
+# Session records — contain cluster credentials and internal details
+TUTORIAL-SESSION.md
+09-inspect-ai-eval-examples.md
+*-STATUS.md
+*STATUS.md
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.python-version
+.venv/
+*.egg-info/
+
+# Environment / secrets
+.env
+.env.*
+*.secret
+secrets/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
