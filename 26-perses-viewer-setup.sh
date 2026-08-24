@@ -30,20 +30,23 @@ oc adm policy add-cluster-role-to-user view \
   "system:serviceaccount:${NAMESPACE}:perses-viewer"
 
 # ── Token Secret ──────────────────────────────────────────────────────────────
-# Long-lived token (1 year) for the PersesDatasource to authenticate against
-# the Thanos querier. Rotate annually or use short-lived tokens with automation.
+# The Perses instance runs in openshift-operators and resolves secret references
+# from ITS OWN namespace — not from the PersesDatasource CR's namespace.
+# The secret must therefore be created in openshift-operators (cluster-admin).
+#
+# Long-lived token (1 year). Rotate annually or automate with short-lived tokens.
 
-log "Creating evalhub-monitoring-token Secret..."
+log "Creating evalhub-monitoring-token Secret in openshift-operators..."
 TOKEN=$(oc create token perses-viewer \
   -n "${NAMESPACE}" \
   --duration=8760h)
 
 oc create secret generic evalhub-monitoring-token \
   --from-literal=token="${TOKEN}" \
-  -n "${NAMESPACE}" \
+  -n openshift-operators \
   --dry-run=client -o yaml | oc apply -f -
 
-log "Token Secret created: evalhub-monitoring-token"
+log "Token Secret created in openshift-operators"
 
 # ── Perses Datasource + Dashboard ─────────────────────────────────────────────
 

@@ -308,10 +308,12 @@ oc adm policy add-cluster-role-to-user view \
   system:serviceaccount:project1:perses-viewer
 
 # Long-lived token stored in a Secret (Perses datasource auth)
+# IMPORTANT: secret must be in openshift-operators — the Perses instance
+# resolves secret references from its own namespace, not the datasource's.
 TOKEN=$(oc create token perses-viewer -n project1 --duration=8760h)
 oc create secret generic evalhub-monitoring-token \
   --from-literal=token="${TOKEN}" \
-  -n project1 \
+  -n openshift-operators \
   --dry-run=client -o yaml | oc apply -f -
 ```
 
