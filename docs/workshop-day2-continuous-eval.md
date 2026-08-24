@@ -44,7 +44,7 @@ Most teams handle this with manual spot-checks or silence until something breaks
  └────────────────────────────────────────────────────────────────┘
 ```
 
-**3.6 roadmap note**: In RHOAI 3.6+, the CronJob is replaced by a `spec.schedule` field on the EvalHub CR — the operator handles scheduling natively. Everything you see today works on 3.5; the 3.6 change removes the pipeline scaffolding.
+**Note**: This Kubernetes CronJob pattern is the recommended approach for scheduling continuous evaluations on RHOAI 3.5. Scheduling capabilities may evolve in future RHOAI releases.
 
 ---
 
@@ -273,16 +273,18 @@ Open MLflow → experiment `evalhub-continuous-safety`. Both runs are visible. T
 
 ---
 
-## Part 3 — Roadmap Context (5 min)
+## Part 3 — What's Next (5 min)
 
-| Capability | Today (3.5) | RHOAI 3.6+ |
-|---|---|---|
-| Continuous eval | Kubernetes CronJob calling `evalhub collections run` | Native `spec.schedule` on EvalHub CR — no CronJob needed |
-| Drift thresholds | `pass_criteria.threshold` per benchmark in collection YAML, enforced via `--fail-on-threshold-breach` | Same, with native alerting integration |
-| Drift baseline comparison | `22-drift-monitor.sh` (manual or CI/CD) | Planned: native baseline tracking in EvalHub |
-| Scheduling granularity | Any cron expression via CronJob | Same, direct on EvalHub CR |
+Everything demonstrated today runs on RHOAI 3.5. The CronJob pattern for continuous evaluation and the drift monitor script are production-ready today.
 
-**Talking point**: *"Everything you saw today runs on RHOAI 3.5 — this is not roadmap. The 3.6 investment is removing the CronJob scaffolding: you'll set `spec.schedule: '0 2 * * *'` directly on the EvalHub resource and the operator handles the rest. Same signals, same thresholds, less plumbing."*
+| Capability | RHOAI 3.5 (now) |
+|---|---|
+| Continuous eval scheduling | Kubernetes CronJob calling `evalhub collections run` |
+| Threshold enforcement | `pass_criteria.threshold` per benchmark in collection YAML — client-side check |
+| Drift baseline comparison | `22-drift-monitor.sh` — run manually or in CI/CD |
+| Scheduling granularity | Any cron expression via standard K8s CronJob |
+
+**Talking point**: *"Everything you saw today works now on RHOAI 3.5. This is a production pattern, not a demo workaround. EvalHub continues to evolve and scheduling capabilities may improve in future releases."*
 
 ---
 
@@ -292,7 +294,7 @@ Open MLflow → experiment `evalhub-continuous-safety`. Both runs are visible. T
 
 2. **Evaluation as SLA** — `pass_criteria.threshold` turns benchmark scores into deployment gates. Same mental model as latency SLOs applied to model behavior.
 
-3. **Works today on RHOAI 3.5** — continuous eval via CronJob and drift detection via script are not roadmap. The only 3.6 item is native scheduling.
+3. **Works today on RHOAI 3.5** — continuous eval via CronJob and drift detection via script are production patterns, not workarounds. Scheduling capabilities may improve in future releases.
 
 4. **Reproducible by default** — every EvalHub run captures the environment: hardware, software versions, model endpoint, collection version. Any historical run can be reproduced exactly.
 

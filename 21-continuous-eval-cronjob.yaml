@@ -3,8 +3,8 @@
 # Schedules a nightly eval run (02:00 UTC) against the nightly-safety-check
 # collection. No KFP required — standard Kubernetes CronJob pattern.
 #
-# EvalHub 3.6+ will replace this with a native spec.schedule field on the
-# EvalHub CR — no CronJob needed. This is the interim pattern for RHOAI 3.5.
+# This is the recommended pattern for scheduling continuous evaluations on RHOAI 3.5.
+# Scheduling capabilities may evolve in future RHOAI releases.
 #
 # Prerequisites (in order):
 #   1. EvalHub deployed (04-evalhub-cr.yaml)
