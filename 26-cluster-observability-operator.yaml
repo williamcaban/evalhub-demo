@@ -1,0 +1,33 @@
+# Cluster Observability Operator (COO) + Perses UIPlugin
+#
+# Installs COO from the Red Hat Operators catalog (stable channel) and enables
+# the Perses dashboard UI in the OpenShift Console for the evalhub-demo.
+#
+# Tested on: RHOAI 3.5 EA2, COO v1.5.1, OCP 4.x (rrrzl cluster)
+#
+# Apply order:
+#   1. oc apply -f 26-cluster-observability-operator.yaml   # cluster-admin
+#   2. Wait for COO to reach Succeeded:
+#        oc get csv -n openshift-operators | grep cluster-observability
+#   3. oc apply -f 26-uiplugin-monitoring.yaml              # cluster-admin
+#   4. oc wait --for=condition=Available uiplugin monitoring --timeout=120s
+#   5. Continue with 26-perses-viewer-setup.sh              # project admin
+#
+# After setup, the console shows:
+#   Observe → Dashboards (Perses) → namespace: project1
+
+---
+# Step 1 — COO Subscription
+# Installs the operator cluster-wide via openshift-operators (AllNamespaces mode).
+# No OperatorGroup needed — openshift-operators already has a global OperatorGroup.
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-observability-operator
+  namespace: openshift-operators
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: cluster-observability-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace

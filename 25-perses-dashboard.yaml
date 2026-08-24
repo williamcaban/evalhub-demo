@@ -1,15 +1,16 @@
 # Perses Dashboard — EvalHub Continuous Evaluation
 #
+# API version: perses.dev/v1alpha2 (COO v1.5.1+)
 # Requires: 25-perses-datasource.yaml applied first.
 # See docs/monitoring-setup.md for full setup steps.
 #
 # Layout (24-column grid):
-#   Row 1 (y=0,  h=4): Status summary — server up, time since eval, breach count
-#   Row 2 (y=4,  h=5): Per-benchmark pass/fail stat panels (one per benchmark)
-#   Row 3 (y=9,  h=8): Benchmark scores over time (time series)
-#   Row 4 (y=17, h=6): EvalHub server health — request rate, error rate
+#   Row 1: Status summary — server up, time since eval, breach count
+#   Row 2: Per-benchmark pass/fail stat panels (green=pass, red=fail)
+#   Row 3: Benchmark scores over time (time series)
+#   Row 4: EvalHub server health — request rate, error rate (collapsed)
 
-apiVersion: perses.dev/v1alpha1
+apiVersion: perses.dev/v1alpha2
 kind: PersesDashboard
 metadata:
   name: evalhub-continuous-eval
@@ -18,436 +19,417 @@ metadata:
     app: evalhub-continuous-eval
     component: monitoring
 spec:
-  display:
-    name: "EvalHub — Continuous Evaluation & Drift Monitoring"
-    description: >
-      Monitors the nightly safety evaluation CronJob: per-benchmark pass/fail
-      status, score trends from the Pushgateway, and EvalHub server health.
-      Metrics source: evalhub-metrics ServiceMonitor + prometheus-pushgateway.
+  config:
+    display:
+      name: "EvalHub — Continuous Evaluation & Drift Monitoring"
+      description: >
+        Monitors the nightly safety evaluation CronJob: per-benchmark pass/fail
+        status, score trends from the Pushgateway, and EvalHub server health.
+        Metrics source: evalhub-metrics ServiceMonitor + prometheus-pushgateway.
 
-  duration: 24h
-  refreshInterval: 5m
+    duration: 24h
+    refreshInterval: 5m
 
-  # ── Panels ────────────────────────────────────────────────────────────────
+    # ── Panels ────────────────────────────────────────────────────────────────
 
-  panels:
+    panels:
 
-    # ── Row 1: Status Summary ──────────────────────────────────────────────
+      # ── Row 1: Status Summary ────────────────────────────────────────────
 
-    "status_server":
-      kind: Panel
-      spec:
-        display:
-          name: EvalHub Server
-          description: "1 = server reachable; 0 = unreachable"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#E02F44"   # red when 0 (server down)
-              steps:
-                - value: 1
-                  color: "#56A64B"      # green when 1 (server up)
-        queries:
-          - kind: TimeSeriesQuery
+      "status_server":
+        kind: Panel
+        spec:
+          display:
+            name: EvalHub Server
+            description: "1 = server reachable; 0 = unreachable"
+          plugin:
+            kind: StatChart
             spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    up{job="evalhub-metrics", namespace="project1"}
+              thresholds:
+                defaultColor: "#E02F44"
+                steps:
+                  - value: 1
+                    color: "#56A64B"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      up{job="evalhub-metrics", namespace="project1"}
 
-    "status_last_run":
-      kind: Panel
-      spec:
-        display:
-          name: Time Since Last Eval
-          description: "Seconds since the last nightly-safety-check run completed"
-        plugin:
-          kind: StatChart
-          spec:
-            format:
-              unit: seconds
-            thresholds:
-              defaultColor: "#56A64B"   # green (recent run)
-              steps:
-                - value: 86400          # 24h — warning if no run today
-                  color: "#F2CC0C"
-                - value: 129600         # 36h — EvalHubNightlyEvalMissed fires
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
+      "status_last_run":
+        kind: Panel
+        spec:
+          display:
+            name: Time Since Last Eval
+            description: "Seconds since the last nightly-safety-check run completed"
+          plugin:
+            kind: StatChart
             spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    time() - evalhub_eval_last_run_timestamp{
-                      collection="nightly-safety-check",
-                      namespace="project1"
-                    }
-
-    "status_breach_count":
-      kind: Panel
-      spec:
-        display:
-          name: Benchmarks Breached
-          description: "Count of benchmarks currently above their pass_criteria threshold"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#56A64B"   # green when 0 breaches
-              steps:
-                - value: 1
-                  color: "#E02F44"      # red when any breach
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    sum(evalhub_threshold_breached{
-                      namespace="project1",
-                      collection="nightly-safety-check"
-                    }) or vector(0)
-
-    # ── Row 2: Per-Benchmark Pass/Fail ────────────────────────────────────
-
-    "bench_alignment_faking":
-      kind: Panel
-      spec:
-        display:
-          name: "Petri: Alignment Faking"
-          description: "concerning/mean — threshold ≤ 3.0 (weight 2.0, existential risk)"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#56A64B"
-              steps:
-                - value: 1
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    evalhub_threshold_breached{
-                      benchmark="inspect/petri-alignment-faking",
-                      namespace="project1"
-                    }
-
-    "bench_oversight_subversion":
-      kind: Panel
-      spec:
-        display:
-          name: "Petri: Oversight Subversion"
-          description: "concerning/mean — threshold ≤ 3.0 (weight 2.0, existential risk)"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#56A64B"
-              steps:
-                - value: 1
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    evalhub_threshold_breached{
-                      benchmark="inspect/petri-oversight-subversion",
-                      namespace="project1"
-                    }
-
-    "bench_jailbreak":
-      kind: Panel
-      spec:
-        display:
-          name: "Petri: Jailbreak"
-          description: "concerning/mean — threshold ≤ 3.0 (weight 1.5)"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#56A64B"
-              steps:
-                - value: 1
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    evalhub_threshold_breached{
-                      benchmark="inspect/petri-jailbreak",
-                      namespace="project1"
-                    }
-
-    "bench_harmful_cooperation":
-      kind: Panel
-      spec:
-        display:
-          name: "Petri: Harmful Cooperation"
-          description: "concerning/mean — threshold ≤ 3.0 (weight 1.5)"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#56A64B"
-              steps:
-                - value: 1
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    evalhub_threshold_breached{
-                      benchmark="inspect/petri-harmful-cooperation",
-                      namespace="project1"
-                    }
-
-    "bench_garak_dan":
-      kind: Panel
-      spec:
-        display:
-          name: "Garak: DAN Quick"
-          description: "attack_success_rate — threshold ≤ 0.30 (weight 1.0)"
-        plugin:
-          kind: StatChart
-          spec:
-            thresholds:
-              defaultColor: "#56A64B"
-              steps:
-                - value: 1
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    evalhub_threshold_breached{
-                      benchmark="quick",
-                      namespace="project1"
-                    }
-
-    # ── Row 3: Benchmark Score Trends ────────────────────────────────────
-
-    "scores_timeseries":
-      kind: Panel
-      spec:
-        display:
-          name: Benchmark Scores Over Time
-          description: >
-            Raw primary metric values per benchmark from the Pushgateway.
-            Updated after each CronJob run. Petri scores: concerning/mean
-            (lower=better, threshold 3.0). Garak: attack_success_rate
-            (lower=better, threshold 0.30).
-        plugin:
-          kind: TimeSeriesChart
-          spec:
-            legend:
-              position: Right
-              mode: Table
-            yAxis:
-              format:
-                unit: decimal
-                decimalPlaces: 2
-              min: 0
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    evalhub_benchmark_score{
-                      namespace="project1",
-                      collection="nightly-safety-check"
-                    }
-                  seriesNameFormat: "{{benchmark}} ({{metric}})"
-
-    # ── Row 4: Server Health ─────────────────────────────────────────────
-
-    "server_request_rate":
-      kind: Panel
-      spec:
-        display:
-          name: EvalHub API Request Rate
-          description: "HTTP requests per second to the EvalHub server by endpoint and status"
-        plugin:
-          kind: TimeSeriesChart
-          spec:
-            legend:
-              position: Bottom
-              mode: List
-            yAxis:
-              format:
-                unit: reqps
-        queries:
-          - kind: TimeSeriesQuery
-            spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    sum by (endpoint, status) (
-                      rate(http_request_duration_seconds_count{
-                        job="evalhub-metrics",
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 86400
+                    color: "#F2CC0C"
+                  - value: 129600
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      time() - evalhub_eval_last_run_timestamp{
+                        collection="nightly-safety-check",
                         namespace="project1"
-                      }[$__rate_interval])
-                    )
-                  seriesNameFormat: "{{endpoint}} {{status}}"
+                      }
 
-    "server_error_rate":
-      kind: Panel
-      spec:
-        display:
-          name: EvalHub API Error Rate (5xx)
-          description: "HTTP 5xx responses per second — non-zero indicates server-side errors"
-        plugin:
-          kind: TimeSeriesChart
-          spec:
-            legend:
-              position: Bottom
-              mode: List
-            yAxis:
-              format:
-                unit: reqps
-            thresholds:
-              steps:
-                - value: 0.01
-                  color: "#F2CC0C"
-                - value: 0.1
-                  color: "#E02F44"
-        queries:
-          - kind: TimeSeriesQuery
+      "status_breach_count":
+        kind: Panel
+        spec:
+          display:
+            name: Benchmarks Breached
+            description: "Count of benchmarks currently above their pass_criteria threshold"
+          plugin:
+            kind: StatChart
             spec:
-              plugin:
-                kind: PrometheusTimeSeriesQuery
-                spec:
-                  query: >
-                    sum by (endpoint) (
-                      rate(http_request_duration_seconds_count{
-                        job="evalhub-metrics",
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 1
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      sum(evalhub_threshold_breached{
                         namespace="project1",
-                        status=~"5.."
-                      }[$__rate_interval])
-                    )
-                  seriesNameFormat: "5xx {{endpoint}}"
+                        collection="nightly-safety-check"
+                      }) or vector(0)
 
-  # ── Layout ────────────────────────────────────────────────────────────────
+      # ── Row 2: Per-Benchmark Pass/Fail ──────────────────────────────────
 
-  layouts:
+      "bench_alignment_faking":
+        kind: Panel
+        spec:
+          display:
+            name: "Petri: Alignment Faking"
+            description: "concerning/mean — threshold ≤ 3.0 (weight 2.0, existential risk)"
+          plugin:
+            kind: StatChart
+            spec:
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 1
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      evalhub_threshold_breached{
+                        benchmark="inspect/petri-alignment-faking",
+                        namespace="project1"
+                      }
 
-    - kind: Grid
-      spec:
-        display:
-          title: Status Summary
-          collapse:
-            open: true
-        items:
-          - x: 0
-            y: 0
-            width: 4
-            height: 4
-            content:
-              $ref: "#/spec/panels/status_server"
-          - x: 4
-            y: 0
-            width: 8
-            height: 4
-            content:
-              $ref: "#/spec/panels/status_last_run"
-          - x: 12
-            y: 0
-            width: 6
-            height: 4
-            content:
-              $ref: "#/spec/panels/status_breach_count"
+      "bench_oversight_subversion":
+        kind: Panel
+        spec:
+          display:
+            name: "Petri: Oversight Subversion"
+            description: "concerning/mean — threshold ≤ 3.0 (weight 2.0, existential risk)"
+          plugin:
+            kind: StatChart
+            spec:
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 1
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      evalhub_threshold_breached{
+                        benchmark="inspect/petri-oversight-subversion",
+                        namespace="project1"
+                      }
 
-    - kind: Grid
-      spec:
-        display:
-          title: Per-Benchmark Pass / Fail
-          collapse:
-            open: true
-        items:
-          - x: 0
-            y: 0
-            width: 5
-            height: 5
-            content:
-              $ref: "#/spec/panels/bench_alignment_faking"
-          - x: 5
-            y: 0
-            width: 5
-            height: 5
-            content:
-              $ref: "#/spec/panels/bench_oversight_subversion"
-          - x: 10
-            y: 0
-            width: 5
-            height: 5
-            content:
-              $ref: "#/spec/panels/bench_jailbreak"
-          - x: 15
-            y: 0
-            width: 5
-            height: 5
-            content:
-              $ref: "#/spec/panels/bench_harmful_cooperation"
-          - x: 20
-            y: 0
-            width: 4
-            height: 5
-            content:
-              $ref: "#/spec/panels/bench_garak_dan"
+      "bench_jailbreak":
+        kind: Panel
+        spec:
+          display:
+            name: "Petri: Jailbreak"
+            description: "concerning/mean — threshold ≤ 3.0 (weight 1.5)"
+          plugin:
+            kind: StatChart
+            spec:
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 1
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      evalhub_threshold_breached{
+                        benchmark="inspect/petri-jailbreak",
+                        namespace="project1"
+                      }
 
-    - kind: Grid
-      spec:
-        display:
-          title: Benchmark Score Trends
-          collapse:
-            open: true
-        items:
-          - x: 0
-            y: 0
-            width: 24
-            height: 8
-            content:
-              $ref: "#/spec/panels/scores_timeseries"
+      "bench_harmful_cooperation":
+        kind: Panel
+        spec:
+          display:
+            name: "Petri: Harmful Cooperation"
+            description: "concerning/mean — threshold ≤ 3.0 (weight 1.5)"
+          plugin:
+            kind: StatChart
+            spec:
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 1
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      evalhub_threshold_breached{
+                        benchmark="inspect/petri-harmful-cooperation",
+                        namespace="project1"
+                      }
 
-    - kind: Grid
-      spec:
-        display:
-          title: EvalHub Server Health
-          collapse:
-            open: false
-        items:
-          - x: 0
-            y: 0
-            width: 12
-            height: 6
-            content:
-              $ref: "#/spec/panels/server_request_rate"
-          - x: 12
-            y: 0
-            width: 12
-            height: 6
-            content:
-              $ref: "#/spec/panels/server_error_rate"
+      "bench_garak_dan":
+        kind: Panel
+        spec:
+          display:
+            name: "Garak: DAN Quick"
+            description: "attack_success_rate — threshold ≤ 0.30 (weight 1.0)"
+          plugin:
+            kind: StatChart
+            spec:
+              thresholds:
+                defaultColor: "#56A64B"
+                steps:
+                  - value: 1
+                    color: "#E02F44"
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      evalhub_threshold_breached{
+                        benchmark="quick",
+                        namespace="project1"
+                      }
+
+      # ── Row 3: Benchmark Score Trends ───────────────────────────────────
+
+      "scores_timeseries":
+        kind: Panel
+        spec:
+          display:
+            name: Benchmark Scores Over Time
+            description: >
+              Raw primary metric values per benchmark. Petri: concerning/mean
+              (lower=better, threshold 3.0). Garak: attack_success_rate
+              (lower=better, threshold 0.30). Updated each CronJob run.
+          plugin:
+            kind: TimeSeriesChart
+            spec:
+              legend:
+                position: right
+                mode: table
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      evalhub_benchmark_score{
+                        namespace="project1",
+                        collection="nightly-safety-check"
+                      }
+                    seriesNameFormat: "{{benchmark}} ({{metric}})"
+
+      # ── Row 4: Server Health ────────────────────────────────────────────
+
+      "server_request_rate":
+        kind: Panel
+        spec:
+          display:
+            name: EvalHub API Request Rate
+            description: "HTTP requests/s to the EvalHub server by endpoint and status"
+          plugin:
+            kind: TimeSeriesChart
+            spec:
+              legend:
+                position: bottom
+                mode: list
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      sum by (endpoint, status) (
+                        rate(http_request_duration_seconds_count{
+                          job="evalhub-metrics",
+                          namespace="project1"
+                        }[$__rate_interval])
+                      )
+                    seriesNameFormat: "{{endpoint}} {{status}}"
+
+      "server_error_rate":
+        kind: Panel
+        spec:
+          display:
+            name: EvalHub API Error Rate (5xx)
+            description: "HTTP 5xx responses/s — non-zero indicates server-side errors"
+          plugin:
+            kind: TimeSeriesChart
+            spec:
+              legend:
+                position: bottom
+                mode: list
+          queries:
+            - kind: TimeSeriesQuery
+              spec:
+                plugin:
+                  kind: PrometheusTimeSeriesQuery
+                  spec:
+                    query: >
+                      sum by (endpoint) (
+                        rate(http_request_duration_seconds_count{
+                          job="evalhub-metrics",
+                          namespace="project1",
+                          status=~"5.."
+                        }[$__rate_interval])
+                      )
+                    seriesNameFormat: "5xx {{endpoint}}"
+
+    # ── Layout ──────────────────────────────────────────────────────────────
+
+    layouts:
+
+      - kind: Grid
+        spec:
+          display:
+            title: Status Summary
+            collapse:
+              open: true
+          items:
+            - x: 0
+              y: 0
+              width: 4
+              height: 4
+              content:
+                $ref: "#/spec/panels/status_server"
+            - x: 4
+              y: 0
+              width: 8
+              height: 4
+              content:
+                $ref: "#/spec/panels/status_last_run"
+            - x: 12
+              y: 0
+              width: 6
+              height: 4
+              content:
+                $ref: "#/spec/panels/status_breach_count"
+
+      - kind: Grid
+        spec:
+          display:
+            title: Per-Benchmark Pass / Fail
+            collapse:
+              open: true
+          items:
+            - x: 0
+              y: 0
+              width: 5
+              height: 5
+              content:
+                $ref: "#/spec/panels/bench_alignment_faking"
+            - x: 5
+              y: 0
+              width: 5
+              height: 5
+              content:
+                $ref: "#/spec/panels/bench_oversight_subversion"
+            - x: 10
+              y: 0
+              width: 5
+              height: 5
+              content:
+                $ref: "#/spec/panels/bench_jailbreak"
+            - x: 15
+              y: 0
+              width: 5
+              height: 5
+              content:
+                $ref: "#/spec/panels/bench_harmful_cooperation"
+            - x: 20
+              y: 0
+              width: 4
+              height: 5
+              content:
+                $ref: "#/spec/panels/bench_garak_dan"
+
+      - kind: Grid
+        spec:
+          display:
+            title: Benchmark Score Trends
+            collapse:
+              open: true
+          items:
+            - x: 0
+              y: 0
+              width: 24
+              height: 8
+              content:
+                $ref: "#/spec/panels/scores_timeseries"
+
+      - kind: Grid
+        spec:
+          display:
+            title: EvalHub Server Health
+            collapse:
+              open: false
+          items:
+            - x: 0
+              y: 0
+              width: 12
+              height: 6
+              content:
+                $ref: "#/spec/panels/server_request_rate"
+            - x: 12
+              y: 0
+              width: 12
+              height: 6
+              content:
+                $ref: "#/spec/panels/server_error_rate"

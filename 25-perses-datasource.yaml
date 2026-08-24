@@ -43,7 +43,7 @@
 #   OpenShift Console → Observe → Dashboards (Perses) → select namespace: project1
 
 ---
-apiVersion: perses.dev/v1alpha1
+apiVersion: perses.dev/v1alpha2
 kind: PersesDatasource
 metadata:
   name: evalhub-user-workload-monitoring

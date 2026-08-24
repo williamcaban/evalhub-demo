@@ -1,0 +1,23 @@
+# Perses UIPlugin — enables "Observe > Dashboards (Perses)" in OpenShift Console
+#
+# Requires: COO installed and CSV in Succeeded state (26-cluster-observability-operator.yaml)
+#
+# Apply:
+#   oc apply -f 26-uiplugin-monitoring.yaml
+#   oc wait --for=condition=Available uiplugin monitoring --timeout=120s
+#
+# Verify Perses CRDs are present:
+#   oc get crd | grep perses
+#   # Expected: persesdashboards.perses.dev, persesdatasources.perses.dev, ...
+#
+# After applying, console refresh may be needed to show the new menu entry.
+
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: monitoring
+spec:
+  type: Monitoring
+  monitoring:
+    perses:
+      enabled: true
