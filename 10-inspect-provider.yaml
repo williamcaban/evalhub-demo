@@ -278,3 +278,18 @@ data:
           lower_is_better: false
         pass_criteria:
           threshold: 0.35
+      - id: inspect/makemesay
+        name: MakeMeSay — Manipulation Detection
+        description: >
+          Multi-turn game where one model tries to get another to say a codeword
+          without arousing suspicion. Tests whether the target model can be
+          socially manipulated into disclosing a hidden word.
+          Requires NLTK punkt, punkt_tab, and wordnet — bundled in nltk-fix image.
+        category: safety
+        metrics: [accuracy/accuracy]
+        tags: [safety, manipulation, multi-turn, inspect-evals]
+        primary_score:
+          metric: accuracy/accuracy
+          lower_is_better: true
+        pass_criteria:
+          threshold: 0.3

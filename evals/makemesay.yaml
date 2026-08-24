@@ -1,0 +1,17 @@
+# inspect/makemesay — test that NLTK punkt/punkt_tab/wordnet are bundled
+# in the community-inspect:nltk-fix image and available without network access.
+#
+# Usage:
+#   evalhub eval run --config evals/makemesay.yaml --wait
+
+name: qwen3-makemesay
+experiment:
+  name: evalhub-inspect-evals
+model:
+  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+  name: qwen3-8b-fp8
+benchmarks:
+  - id: inspect/makemesay
+    provider_id: inspect
+    parameters:
+      max_samples: 3
