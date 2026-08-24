@@ -1,0 +1,122 @@
+# Prometheus Pushgateway — receives metrics pushed by the CronJob
+#
+# The nightly CronJob's check_thresholds.py pushes per-benchmark scores and
+# breach status to this Pushgateway after each eval run. The user-workload
+# Prometheus scrapes it via the ServiceMonitor below, making metrics available
+# for PrometheusRules in project1 without cluster-admin.
+#
+# Metrics pushed (job="nightly-safety-eval"):
+#   evalhub_benchmark_score{benchmark, metric, collection}   — raw score value
+#   evalhub_threshold_breached{benchmark, collection, threshold} — 1 or 0
+#   evalhub_eval_last_run_timestamp{collection}              — Unix timestamp of last run
+#
+# Apply:
+#   oc apply -f 24-pushgateway.yaml
+#
+# Verify:
+#   oc get pod -n project1 -l app=prometheus-pushgateway
+#   oc exec -n project1 deploy/prometheus-pushgateway -- wget -qO- http://localhost:9091/metrics | grep evalhub
+#
+# Cleanup (to reset stale metrics between demo runs):
+#   PGHOST=$(oc get svc prometheus-pushgateway -n project1 -o jsonpath='{.spec.clusterIP}')
+#   oc exec -n project1 deploy/prometheus-pushgateway -- \
+#     wget -qO- --method=DELETE http://localhost:9091/metrics/job/nightly-safety-eval
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-pushgateway
+  namespace: project1
+  labels:
+    app: prometheus-pushgateway
+    component: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-pushgateway
+  template:
+    metadata:
+      labels:
+        app: prometheus-pushgateway
+        component: monitoring
+    spec:
+      containers:
+      - name: pushgateway
+        image: quay.io/prometheus/pushgateway:latest
+        args:
+        - --web.listen-address=:9091
+        - --web.telemetry-path=/metrics
+        ports:
+        - name: metrics
+          containerPort: 9091
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9091
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /-/healthy
+            port: 9091
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        resources:
+          requests:
+            cpu: "50m"
+            memory: "64Mi"
+          limits:
+            cpu: "200m"
+            memory: "128Mi"
+        securityContext:
+          runAsNonRoot: true
+          allowPrivilegeEscalation: false
+          seccompProfile:
+            type: RuntimeDefault
+          capabilities:
+            drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-pushgateway
+  namespace: project1
+  labels:
+    app: prometheus-pushgateway
+    component: monitoring
+spec:
+  selector:
+    app: prometheus-pushgateway
+  ports:
+  - name: metrics
+    port: 9091
+    targetPort: 9091
+    protocol: TCP
+---
+# ServiceMonitor — user-workload Prometheus scrapes the Pushgateway every 30s.
+# The evalhub-metrics ServiceMonitor (operator-managed) already exists for
+# EvalHub server health. This is a separate monitor for pushed eval results.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: evalhub-pushgateway
+  namespace: project1
+  labels:
+    app: prometheus-pushgateway
+    component: monitoring
+spec:
+  endpoints:
+  - port: metrics
+    interval: 30s
+    path: /metrics
+    honorLabels: true   # preserve job/instance labels pushed by the CronJob
+  namespaceSelector:
+    matchNames:
+    - project1
+  selector:
+    matchLabels:
+      app: prometheus-pushgateway
+      component: monitoring

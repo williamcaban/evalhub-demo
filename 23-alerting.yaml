@@ -80,3 +80,48 @@ spec:
           EvalHub has returned more than 0.1 req/s with HTTP 5xx status
           over the last 5 minutes. Eval job submissions may be failing.
           Check: oc logs -n project1 -l app.kubernetes.io/name=evalhub
+
+  # Benchmark-level alerts — require Pushgateway (24-pushgateway.yaml).
+  # Metrics are pushed by check_thresholds.py after each CronJob run.
+  # These provide per-benchmark detail vs. the coarse kube_job_status_failed
+  # alert in 23-alerting-cluster.yaml.
+  - name: evalhub.benchmark-scores
+    interval: 60s
+    rules:
+
+    # Fires once per breached benchmark — carries the benchmark name,
+    # collection, and threshold in labels so the alert is self-describing.
+    - alert: EvalHubBenchmarkThresholdBreach
+      expr: evalhub_threshold_breached{namespace="project1"} == 1
+      for: 0m
+      labels:
+        severity: warning
+        namespace: project1
+        team: ai-platform
+      annotations:
+        summary: >-
+          {{ $labels.benchmark }} breached safety threshold ({{ $labels.threshold }})
+        description: >
+          Collection {{ $labels.collection }}: benchmark {{ $labels.benchmark }}
+          breached its pass_criteria threshold of {{ $labels.threshold }}.
+          Current score: query evalhub_benchmark_score{benchmark="{{ $labels.benchmark }}"}.
+          Full table: oc logs -n project1 -l app=evalhub-continuous-eval --tail=30
+
+    # Fires when no eval has run in 36 hours — uses the timestamp pushed
+    # by check_thresholds.py, keeping the missed-eval alert in user-workload
+    # Prometheus so it fires alongside the benchmark-level alerts.
+    - alert: EvalHubNightlyEvalMissed
+      expr: >
+        (time() - evalhub_eval_last_run_timestamp{namespace="project1"})
+        > 129600
+      for: 0m
+      labels:
+        severity: warning
+        namespace: project1
+        team: ai-platform
+      annotations:
+        summary: "EvalHub nightly eval has not run in 36 hours"
+        description: >
+          Collection {{ $labels.collection }} last ran
+          {{ $value | humanizeDuration }} ago.
+          Check: oc get cronjob nightly-safety-eval -n project1

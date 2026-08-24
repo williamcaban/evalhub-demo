@@ -80,12 +80,14 @@ spec:
               value: "1"
             - name: HOME
               value: "/tmp"
+            - name: PUSHGATEWAY_URL
+              value: "http://prometheus-pushgateway.project1.svc.cluster.local:9091"
             command: ["/bin/bash", "-c"]
             args:
               - |
                 set -euo pipefail
-                echo "[$(date -u +%H:%M:%S)] Installing eval-hub-sdk..."
-                pip install -q --user "eval-hub-sdk[cli]>=0.4.2"
+                echo "[$(date -u +%H:%M:%S)] Installing eval-hub-sdk and prometheus-client..."
+                pip install -q --user "eval-hub-sdk[cli]>=0.4.2" "prometheus-client>=0.20.0"
                 export PATH="/tmp/.local/bin:${PATH}"
 
                 # Pod's mounted ServiceAccount token is the EvalHub auth credential
@@ -142,7 +144,7 @@ metadata:
     app: evalhub-continuous-eval
 data:
   check_thresholds.py: |
-    import json, sys
+    import json, os, sys, time
 
     col_file, res_file = sys.argv[1], sys.argv[2]
 
@@ -152,6 +154,8 @@ data:
     res_item = json.load(open(res_file))
     res_item = res_item[0] if isinstance(res_item, list) else res_item
 
+    collection = col_item.get("name", "unknown")
+
     thresholds = {}
     for b in col_item.get("benchmarks", []):
         bid    = b["id"]
@@ -160,7 +164,8 @@ data:
         thresh = b["pass_criteria"]["threshold"]
         thresholds[bid] = (metric, thresh, lower)
 
-    failed = []
+    results = {}
+    failed  = []
     print(f"\n{'Benchmark':<48} {'Metric':<28} {'Value':>7} {'Threshold':>10} {'Status':>8}")
     print("-" * 106)
     for b in res_item["results"]["benchmarks"]:
@@ -176,9 +181,59 @@ data:
         status = "FAIL" if breached else "PASS"
         if breached:
             failed.append(f"{bid}: {metric_name}={value:.4f} ({'<=' if lower else '>='} {thresh})")
+        results[bid] = (metric_name, thresh, lower, value, breached)
         print(f"{bid:<48} {metric_name:<28} {value:>7.4f} {thresh:>10.2f} {status:>8}")
 
     print()
+
+    # Push benchmark scores and breach status to Pushgateway so
+    # PrometheusRules in project1 can alert with per-benchmark detail.
+    pushgateway_url = os.environ.get("PUSHGATEWAY_URL", "")
+    if pushgateway_url:
+        try:
+            from prometheus_client import CollectorRegistry, Gauge, push_to_gateway
+
+            registry = CollectorRegistry()
+
+            score_g = Gauge(
+                "evalhub_benchmark_score",
+                "Primary metric value from last eval run",
+                ["benchmark", "metric", "collection"],
+                registry=registry,
+            )
+            breach_g = Gauge(
+                "evalhub_threshold_breached",
+                "1 if benchmark breached pass_criteria threshold, 0 if passed",
+                ["benchmark", "collection", "threshold"],
+                registry=registry,
+            )
+            ts_g = Gauge(
+                "evalhub_eval_last_run_timestamp",
+                "Unix timestamp of the most recent eval run for this collection",
+                ["collection"],
+                registry=registry,
+            )
+
+            for bid, (metric_name, thresh, lower, value, breached) in results.items():
+                score_g.labels(
+                    benchmark=bid, metric=metric_name, collection=collection
+                ).set(value)
+                breach_g.labels(
+                    benchmark=bid, collection=collection, threshold=str(thresh)
+                ).set(1 if breached else 0)
+
+            ts_g.labels(collection=collection).set(time.time())
+
+            push_to_gateway(
+                pushgateway_url,
+                job="nightly-safety-eval",
+                registry=registry,
+            )
+            print(f"Metrics pushed to Pushgateway: {pushgateway_url}")
+        except Exception as e:
+            print(f"Warning: failed to push metrics to Pushgateway: {e}")
+            # Non-fatal — threshold check result is authoritative
+
     if failed:
         print("THRESHOLD BREACH — nightly safety gate FAILED:")
         for f in failed:
