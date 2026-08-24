@@ -1,7 +1,8 @@
 # EvalHub Monitoring Setup
 
-Covers user workload monitoring configuration, ServiceMonitor verification, and
-PrometheusRule deployment for continuous evaluation alerting on RHOAI 3.5.
+Covers user workload monitoring configuration, ServiceMonitor verification,
+PrometheusRule deployment for continuous evaluation alerting, and the optional
+Perses dashboard for the OpenShift Console on RHOAI 3.5.
 
 ---
 
@@ -229,3 +230,123 @@ which is set when the CronJob's threshold-check script exits non-zero.
 | PrometheusRule not evaluated | Missing `openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus` label | Add the label to the PrometheusRule metadata |
 | `EvalHubNightlySafetyBreach` never fires after job fails | Rule is in `project1` not `openshift-monitoring` | `kube_job_status_failed` is only in cluster Prometheus — apply `23-alerting-cluster.yaml` |
 | Alert fires for old completed jobs | `kube_job_status_failed` persists until job is deleted | CronJob history limit: `successfulJobsHistoryLimit: 7`, `failedJobsHistoryLimit: 3` |
+
+---
+
+## Perses Dashboard (Optional — Observe > Dashboards in OpenShift Console)
+
+The Perses dashboard (`25-perses-dashboard.yaml`) visualises the same metrics as
+the PrometheusRules but interactively in the OpenShift Console:
+
+- **Row 1** — Status summary: server up, time since last eval, breach count
+- **Row 2** — Per-benchmark pass/fail stat panels (green=pass, red=fail)
+- **Row 3** — Benchmark score trends over time (Pushgateway time series)
+- **Row 4** — EvalHub server health: request rate and 5xx error rate
+
+### Prerequisites
+
+The Cluster Observability Operator (COO) and its UIPlugin are **not** installed
+on this cluster by default. A cluster-admin must install them first.
+
+#### 1. Install the Cluster Observability Operator
+
+Via OperatorHub in the OpenShift Console, or:
+
+```bash
+cat <<'YAML' | oc apply -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: cluster-observability-operator
+  namespace: openshift-operators
+spec:
+  channel: development
+  installPlanApproval: Automatic
+  name: cluster-observability-operator
+  source: community-operators
+  sourceNamespace: openshift-marketplace
+YAML
+```
+
+Wait for the operator to be ready:
+
+```bash
+oc wait --for=condition=Available \
+  deployment/observability-operator \
+  -n openshift-operators --timeout=120s
+```
+
+#### 2. Enable Perses via UIPlugin
+
+```bash
+cat <<'YAML' | oc apply -f -
+apiVersion: observability.openshift.io/v1alpha1
+kind: UIPlugin
+metadata:
+  name: monitoring
+spec:
+  type: Monitoring
+  monitoring:
+    perses:
+      enabled: true
+YAML
+
+oc wait --for=condition=Available uiplugin monitoring --timeout=60s
+```
+
+After this, **Observe > Dashboards (Perses)** appears in the OpenShift Console.
+
+### Setup (project admin)
+
+#### 3. Create the monitoring ServiceAccount and token Secret
+
+```bash
+# ServiceAccount for Thanos querier read access
+oc create serviceaccount perses-viewer -n project1 \
+  --dry-run=client -o yaml | oc apply -f -
+oc adm policy add-cluster-role-to-user view \
+  system:serviceaccount:project1:perses-viewer
+
+# Long-lived token stored in a Secret (Perses datasource auth)
+TOKEN=$(oc create token perses-viewer -n project1 --duration=8760h)
+oc create secret generic evalhub-monitoring-token \
+  --from-literal=token="${TOKEN}" \
+  -n project1 \
+  --dry-run=client -o yaml | oc apply -f -
+```
+
+#### 4. Apply datasource and dashboard
+
+```bash
+oc apply -f 25-perses-datasource.yaml
+oc apply -f 25-perses-dashboard.yaml
+```
+
+Verify:
+
+```bash
+oc get persesdatasource evalhub-user-workload-monitoring -n project1
+oc wait --for=condition=Available persesdashboard evalhub-continuous-eval \
+  -n project1 --timeout=30s
+```
+
+#### 5. View in the console
+
+OpenShift Console → **Observe → Dashboards (Perses)** → select namespace `project1`
+→ select **EvalHub — Continuous Evaluation & Drift Monitoring**.
+
+### Dashboard metrics reference
+
+| Panel | Metric | Source |
+|---|---|---|
+| EvalHub Server | `up{job="evalhub-metrics"}` | evalhub-metrics ServiceMonitor |
+| Time Since Last Eval | `time() - evalhub_eval_last_run_timestamp` | Pushgateway |
+| Benchmarks Breached | `sum(evalhub_threshold_breached)` | Pushgateway |
+| Per-benchmark status | `evalhub_threshold_breached{benchmark=...}` | Pushgateway |
+| Score trends | `evalhub_benchmark_score{...}` | Pushgateway |
+| API request rate | `http_request_duration_seconds_count` | evalhub-metrics ServiceMonitor |
+| API error rate | `http_request_duration_seconds_count{status=~"5.."}` | evalhub-metrics ServiceMonitor |
+
+The Pushgateway metrics are written by `check_thresholds.py` after each
+CronJob eval run. They persist until the next run overwrites them (push
+replaces, not appends).

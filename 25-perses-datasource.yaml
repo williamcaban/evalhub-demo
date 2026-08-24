@@ -1,0 +1,75 @@
+# Perses Datasource — EvalHub user-workload metrics
+#
+# Prerequisites (cluster-admin, once per cluster):
+#   1. Cluster Observability Operator (COO) installed
+#   2. UIPlugin with Perses enabled:
+#        oc apply -f - <<'EOF'
+#        apiVersion: observability.openshift.io/v1alpha1
+#        kind: UIPlugin
+#        metadata:
+#          name: monitoring
+#        spec:
+#          type: Monitoring
+#          monitoring:
+#            perses:
+#              enabled: true
+#        EOF
+#   3. Wait for Perses operator to be ready:
+#        oc wait --for=condition=Available uiplugin monitoring --timeout=60s
+#
+# Setup (project admin, once per namespace):
+#
+#   # Create a ServiceAccount token for Thanos querier auth
+#   oc create serviceaccount perses-viewer -n project1 --dry-run=client -o yaml | oc apply -f -
+#   oc adm policy add-cluster-role-to-user view \
+#     system:serviceaccount:project1:perses-viewer
+#
+#   # Create the Secret used by the PersesDatasource
+#   TOKEN=$(oc create token perses-viewer -n project1 --duration=8760h)
+#   oc create secret generic evalhub-monitoring-token \
+#     --from-literal=token="${TOKEN}" \
+#     -n project1 \
+#     --dry-run=client -o yaml | oc apply -f -
+#
+#   # Apply datasource and dashboard
+#   oc apply -f 25-perses-datasource.yaml
+#   oc apply -f 25-perses-dashboard.yaml
+#
+# Verify:
+#   oc wait --for=condition=Available persesdashboard evalhub-continuous-eval \
+#     -n project1 --timeout=30s
+#
+# View:
+#   OpenShift Console → Observe → Dashboards (Perses) → select namespace: project1
+
+---
+apiVersion: perses.dev/v1alpha1
+kind: PersesDatasource
+metadata:
+  name: evalhub-user-workload-monitoring
+  namespace: project1
+  labels:
+    app: evalhub-continuous-eval
+    component: monitoring
+spec:
+  config:
+    default: true
+    display:
+      name: "EvalHub — User Workload Monitoring"
+    plugin:
+      kind: PrometheusDatasource
+      spec:
+        proxy:
+          kind: HTTPProxy
+          spec:
+            # Thanos querier port 9092 serves user-defined metrics scoped to the
+            # namespace(s) listed as query parameters. Add more namespaces if
+            # eval jobs run in additional projects.
+            url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9092?namespace=project1
+            secret: evalhub-monitoring-token
+  client:
+    tls:
+      enable: true
+      caCert:
+        type: file
+        certPath: /ca/service-ca.crt
