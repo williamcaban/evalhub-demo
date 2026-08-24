@@ -22,6 +22,7 @@ spec:
   - combined-safety-alignment
   - garak-red-team
   - guidellm-perf
+  - nightly-safety-check
 
   providers:
   - lighteval

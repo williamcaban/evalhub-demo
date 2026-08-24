@@ -1,0 +1,188 @@
+# Continuous Evaluation CronJob — nightly safety check via EvalHub
+#
+# Schedules a nightly eval run (02:00 UTC) against the nightly-safety-check
+# collection. No KFP required — standard Kubernetes CronJob pattern.
+#
+# EvalHub 3.6+ will replace this with a native spec.schedule field on the
+# EvalHub CR — no CronJob needed. This is the interim pattern for RHOAI 3.5.
+#
+# Prerequisites (in order):
+#   1. EvalHub deployed (04-evalhub-cr.yaml)
+#   2. nightly-safety-check collection registered (21-collections-day2.yaml)
+#   3. Model serving running (06-qwen3-judge.yaml or equivalent)
+#   4. evalhub-user-sa ServiceAccount exists (02-rbac.yaml)
+#
+# Setup:
+#   # Create the runner config Secret (update values for your cluster/model)
+#   oc create secret generic evalhub-runner-config -n project1 \
+#     --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
+#     --from-literal=model_url="http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
+#     --from-literal=model_name="qwen3-8b-fp8"
+#
+#   oc apply -f 21-continuous-eval-cronjob.yaml
+#
+# Trigger a one-off run to verify:
+#   oc create job --from=cronjob/nightly-safety-eval nightly-safety-eval-manual -n project1
+#   oc logs -n project1 -l job-name=nightly-safety-eval-manual -f
+#
+# Monitor scheduled runs:
+#   oc get cronjob nightly-safety-eval -n project1
+#   oc get jobs -n project1 | grep nightly-safety-eval
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: nightly-safety-eval
+  namespace: project1
+  labels:
+    app: evalhub-continuous-eval
+    component: scheduler
+spec:
+  schedule: "0 2 * * *"           # 02:00 UTC nightly
+  timeZone: "UTC"
+  concurrencyPolicy: Forbid        # skip if previous run still going
+  successfulJobsHistoryLimit: 7    # keep one week of successful runs
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 3600  # 1 hour hard timeout — prevents zombie jobs
+      backoffLimit: 0              # no retries — threshold breach is a deliberate failure
+      template:
+        metadata:
+          labels:
+            app: evalhub-continuous-eval
+            component: evaluation-job  # required for egress NetworkPolicy (G5)
+        spec:
+          serviceAccountName: evalhub-user-sa
+          restartPolicy: Never
+          containers:
+          - name: eval-runner
+            image: python:3.12-slim
+            env:
+            - name: EVALHUB_URL
+              valueFrom:
+                secretKeyRef:
+                  name: evalhub-runner-config
+                  key: evalhub_url
+            - name: MODEL_URL
+              valueFrom:
+                secretKeyRef:
+                  name: evalhub-runner-config
+                  key: model_url
+            - name: MODEL_NAME
+              valueFrom:
+                secretKeyRef:
+                  name: evalhub-runner-config
+                  key: model_name
+            - name: EVALHUB_TENANT
+              value: "project1"
+            - name: PYTHONUNBUFFERED
+              value: "1"
+            - name: HOME
+              value: "/tmp"
+            command: ["/bin/bash", "-c"]
+            args:
+              - |
+                set -euo pipefail
+                echo "[$(date -u +%H:%M:%S)] Installing eval-hub-sdk..."
+                pip install -q --user "eval-hub-sdk[cli]>=0.4.2"
+                export PATH="/tmp/.local/bin:${PATH}"
+
+                # Pod's mounted ServiceAccount token is the EvalHub auth credential
+                TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+
+                echo "[$(date -u +%H:%M:%S)] Configuring evalhub CLI..."
+                evalhub config set base_url "${EVALHUB_URL}"
+                evalhub config set token "${TOKEN}"
+                evalhub config set tenant "${EVALHUB_TENANT}"
+                evalhub config set insecure true
+
+                echo "[$(date -u +%H:%M:%S)] Verifying EvalHub health..."
+                evalhub health
+
+                echo "[$(date -u +%H:%M:%S)] Fetching collection thresholds..."
+                evalhub collections describe nightly-safety-check --format json > /tmp/col.json
+
+                echo "[$(date -u +%H:%M:%S)] Running nightly-safety-check collection..."
+                evalhub collections run nightly-safety-check \
+                  --model-url "${MODEL_URL}" \
+                  --model-name "${MODEL_NAME}" \
+                  --wait \
+                  --format json > /tmp/result.json
+
+                echo "[$(date -u +%H:%M:%S)] Checking thresholds..."
+                cp /scripts/check_thresholds.py /tmp/check_thresholds.py
+                python3 /tmp/check_thresholds.py /tmp/col.json /tmp/result.json
+
+                echo "[$(date -u +%H:%M:%S)] Nightly eval complete — all thresholds passed."
+            resources:
+              requests:
+                cpu: "100m"
+                memory: "256Mi"
+              limits:
+                cpu: "500m"
+                memory: "512Mi"
+            volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+          volumes:
+          - name: scripts
+            configMap:
+              name: evalhub-runner-scripts
+              defaultMode: 0755
+---
+# ConfigMap carrying the threshold-check Python script into the CronJob pod.
+# Avoids heredoc-in-YAML issues by keeping the Python in a proper ConfigMap key.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: evalhub-runner-scripts
+  namespace: project1
+  labels:
+    app: evalhub-continuous-eval
+data:
+  check_thresholds.py: |
+    import json, sys
+
+    col_file, res_file = sys.argv[1], sys.argv[2]
+
+    col_item = json.load(open(col_file))
+    col_item = col_item[0] if isinstance(col_item, list) else col_item
+
+    res_item = json.load(open(res_file))
+    res_item = res_item[0] if isinstance(res_item, list) else res_item
+
+    thresholds = {}
+    for b in col_item.get("benchmarks", []):
+        bid    = b["id"]
+        metric = b["primary_score"]["metric"]
+        lower  = b["primary_score"]["lower_is_better"]
+        thresh = b["pass_criteria"]["threshold"]
+        thresholds[bid] = (metric, thresh, lower)
+
+    failed = []
+    print(f"\n{'Benchmark':<48} {'Metric':<28} {'Value':>7} {'Threshold':>10} {'Status':>8}")
+    print("-" * 106)
+    for b in res_item["results"]["benchmarks"]:
+        bid = b["id"]
+        if bid not in thresholds:
+            continue
+        metric_name, thresh, lower = thresholds[bid]
+        value = b.get("metrics", {}).get(metric_name)
+        if value is None:
+            print(f"{bid:<48} {metric_name:<28} {'N/A':>7} {thresh:>10.2f} {'MISSING':>8}")
+            continue
+        breached = (lower and value > thresh) or (not lower and value < thresh)
+        status = "FAIL" if breached else "PASS"
+        if breached:
+            failed.append(f"{bid}: {metric_name}={value:.4f} ({'<=' if lower else '>='} {thresh})")
+        print(f"{bid:<48} {metric_name:<28} {value:>7.4f} {thresh:>10.2f} {status:>8}")
+
+    print()
+    if failed:
+        print("THRESHOLD BREACH — nightly safety gate FAILED:")
+        for f in failed:
+            print(f"  {f}")
+        sys.exit(1)
+    else:
+        print("All thresholds passed.")
