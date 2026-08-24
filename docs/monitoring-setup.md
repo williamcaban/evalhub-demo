@@ -298,61 +298,12 @@ After this, **Observe > Dashboards (Perses)** appears in the OpenShift Console.
 
 ### Setup (project admin)
 
-#### 3. Create the monitoring ServiceAccount and token Secret
+No ServiceAccount, token Secret, or RBAC is needed. The Perses instance uses
+`kubernetesAuth` (enabled by COO in the `Perses` CR) to forward the user's
+own OpenShift session token when proxying requests to the Thanos querier.
+The user viewing the dashboard must have `view` permission on `project1`.
 
-```bash
-# ServiceAccount for Thanos querier read access
-oc create serviceaccount perses-viewer -n project1 \
-  --dry-run=client -o yaml | oc apply -f -
-oc adm policy add-cluster-role-to-user view \
-  system:serviceaccount:project1:perses-viewer
-
-# Long-lived token stored in a Secret (Perses datasource auth)
-# IMPORTANT: secret must be in openshift-operators — the Perses instance
-# resolves secret references from its own namespace, not the datasource's.
-TOKEN=$(oc create token perses-viewer -n project1 --duration=8760h)
-oc create secret generic evalhub-monitoring-token \
-  --from-literal=token="${TOKEN}" \
-  -n openshift-operators \
-  --dry-run=client -o yaml | oc apply -f -
-```
-
-#### 4. Grant Perses server access to the token Secret
-
-The Perses server (`perses-sa` in `openshift-operators`) resolves the datasource
-secret at query time from the `PersesDatasource` CR's namespace (`project1`).
-Without this RoleBinding every panel returns *"secret not found"*.
-
-```bash
-cat <<'RBAC' | oc apply -f -
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: perses-secret-reader
-  namespace: project1
-rules:
-  - apiGroups: [""]
-    resources: ["secrets"]
-    verbs: ["get"]
-    resourceNames: ["evalhub-monitoring-token"]
----
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: perses-sa-secret-reader
-  namespace: project1
-subjects:
-  - kind: ServiceAccount
-    name: perses-sa
-    namespace: openshift-operators
-roleRef:
-  kind: Role
-  name: perses-secret-reader
-  apiGroup: rbac.authorization.k8s.io
-RBAC
-```
-
-#### 5. Apply datasource and dashboard
+#### 3. Apply datasource and dashboard
 
 ```bash
 oc apply -f 25-perses-datasource.yaml
@@ -362,9 +313,9 @@ oc apply -f 25-perses-dashboard.yaml
 Verify:
 
 ```bash
-oc get persesdatasource evalhub-user-workload-monitoring -n project1
-oc wait --for=condition=Available persesdashboard evalhub-continuous-eval \
-  -n project1 --timeout=30s
+oc get persesdatasource evalhub-user-workload-monitoring -n project1 \
+  -o jsonpath='{.status.conditions[*].message}'
+# Expected: ...created successfully ...reconciled successfully
 ```
 
 #### 5. View in the console

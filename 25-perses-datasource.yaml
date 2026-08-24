@@ -1,75 +1,30 @@
 # Perses Datasource — EvalHub user-workload metrics
 #
 # Prerequisites (cluster-admin, once per cluster):
-#   1. Cluster Observability Operator (COO) installed
-#   2. UIPlugin with Perses enabled:
-#        oc apply -f - <<'EOF'
-#        apiVersion: observability.openshift.io/v1alpha1
-#        kind: UIPlugin
-#        metadata:
-#          name: monitoring
-#        spec:
-#          type: Monitoring
-#          monitoring:
-#            perses:
-#              enabled: true
-#        EOF
-#   3. Wait for Perses operator to be ready:
-#        oc wait --for=condition=Available uiplugin monitoring --timeout=60s
+#   1. COO installed: oc apply -f 26-cluster-observability-operator.yaml
+#   2. UIPlugin enabled: oc apply -f 26-uiplugin-monitoring.yaml
+#      oc wait --for=condition=Available uiplugin monitoring --timeout=120s
 #
-# Setup (project admin, once per namespace):
+# Authentication note:
+#   No static secret is needed. The Perses instance uses kubernetesAuth
+#   (enabled in the Perses CR by COO) to forward the user's Kubernetes token
+#   when proxying requests to the Thanos querier. The token is the user's own
+#   OpenShift session token — Perses passes it through automatically.
+#   The user must have 'view' permission in project1 to see the metrics.
 #
-#   # Create a ServiceAccount token for Thanos querier auth
-#   oc create serviceaccount perses-viewer -n project1 --dry-run=client -o yaml | oc apply -f -
-#   oc adm policy add-cluster-role-to-user view \
-#     system:serviceaccount:project1:perses-viewer
+# TLS note:
+#   The Thanos querier at port 9092 uses OpenShift service serving certificates.
+#   The CA cert is mounted into the Perses pod at /ca/service-ca.crt by COO.
+#   This is referenced via the Perses-internal secret created automatically by
+#   the operator when this PersesDatasource is reconciled.
 #
-#   # Create the Secret in openshift-operators — Perses resolves secret refs from
-#   # its own namespace (openshift-operators), NOT from the PersesDatasource namespace.
-#   TOKEN=$(oc create token perses-viewer -n project1 --duration=8760h)
-#   oc create secret generic evalhub-monitoring-token \
-#     --from-literal=token="${TOKEN}" \
-#     -n openshift-operators \
-#     --dry-run=client -o yaml | oc apply -f -
-#
-#   # Grant perses-sa read access to the token Secret in project1.
-#   # The Perses server (perses-sa, openshift-operators) reads the secret at
-#   # query time from the datasource namespace — without this RoleBinding all
-#   # panels return "secret not found".
-#   oc apply -f - <<'RBAC'
-#   apiVersion: rbac.authorization.k8s.io/v1
-#   kind: Role
-#   metadata:
-#     name: perses-secret-reader
-#     namespace: project1
-#   rules:
-#     - apiGroups: [""]
-#       resources: ["secrets"]
-#       verbs: ["get"]
-#       resourceNames: ["evalhub-monitoring-token"]
-#   ---
-#   apiVersion: rbac.authorization.k8s.io/v1
-#   kind: RoleBinding
-#   metadata:
-#     name: perses-sa-secret-reader
-#     namespace: project1
-#   subjects:
-#     - kind: ServiceAccount
-#       name: perses-sa
-#       namespace: openshift-operators
-#   roleRef:
-#     kind: Role
-#     name: perses-secret-reader
-#     apiGroup: rbac.authorization.k8s.io
-#   RBAC
-#
-#   # Apply datasource and dashboard
+# Apply:
 #   oc apply -f 25-perses-datasource.yaml
 #   oc apply -f 25-perses-dashboard.yaml
 #
 # Verify:
-#   oc wait --for=condition=Available persesdashboard evalhub-continuous-eval \
-#     -n project1 --timeout=30s
+#   oc get persesdatasource evalhub-user-workload-monitoring -n project1 \
+#     -o jsonpath='{.status.conditions[*].message}'
 #
 # View:
 #   OpenShift Console → Observe → Dashboards (Perses) → select namespace: project1
@@ -94,11 +49,10 @@ spec:
         proxy:
           kind: HTTPProxy
           spec:
-            # Thanos querier port 9092 serves user-defined metrics scoped to the
-            # namespace(s) listed as query parameters. Add more namespaces if
-            # eval jobs run in additional projects.
+            # Thanos querier port 9092 — user-workload metrics scoped to project1.
+            # Auth: Perses forwards the user's Kubernetes token (kubernetesAuth).
+            # TLS: service CA cert mounted at /ca/service-ca.crt by COO.
             url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9092?namespace=project1
-            secret: evalhub-monitoring-token
   client:
     tls:
       enable: true
