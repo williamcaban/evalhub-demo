@@ -1,0 +1,82 @@
+# EvalHub Alerting Rules
+#
+# Contains two PrometheusRule resources targeting different Prometheus instances:
+#
+#   PART A — project1 namespace (user-workload Prometheus)
+#     Requires: user workload monitoring enabled (see docs/monitoring-setup.md)
+#     Alerts:   EvalHub server availability and HTTP error rate
+#     Apply:    oc apply -f 23-alerting.yaml -n project1
+#               (or leave namespace in the metadata — already set)
+#
+#   PART B — openshift-monitoring namespace (cluster-level Prometheus)
+#     Requires: cluster-admin
+#     Alerts:   CronJob failure = threshold breach; missed nightly eval
+#     Metric:   kube_job_status_failed — only in cluster Prometheus, not user-workload
+#     Apply:    oc apply -f 23-alerting-cluster.yaml  (see note below)
+#
+# Because the two rules go into different namespaces, apply them separately:
+#
+#   # Part A — user-workload (run as project admin)
+#   oc apply -f 23-alerting.yaml
+#
+#   # Part B — cluster-level (run as cluster-admin)
+#   oc apply -f 23-alerting-cluster.yaml
+#
+# Verify rules are loaded:
+#   oc get prometheusrule -n project1
+#   oc get prometheusrule -n openshift-monitoring | grep evalhub
+#
+# Check firing alerts:
+#   OpenShift Console → Observe → Alerting → filter "evalhub"
+
+---
+# PART A — User-workload PrometheusRule (project1)
+# Evaluated by the user-workload Prometheus instance.
+# Uses metrics scraped from the evalhub-metrics ServiceMonitor (port 8081).
+# The operator creates the ServiceMonitor automatically — no manual setup needed.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: evalhub-availability-alerts
+  namespace: project1
+  labels:
+    app: evalhub-continuous-eval
+    # Required label for user-workload Prometheus to pick up this rule
+    openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus
+spec:
+  groups:
+  - name: evalhub.availability
+    interval: 60s
+    rules:
+    - alert: EvalHubServerDown
+      expr: up{job="evalhub-metrics", namespace="project1"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        namespace: project1
+      annotations:
+        summary: "EvalHub server is unreachable"
+        description: >
+          EvalHub in namespace {{ $labels.namespace }} has been unreachable
+          for 2 minutes. Continuous evaluation and drift monitoring are suspended.
+          Check: oc get pod -n project1 -l app.kubernetes.io/name=evalhub
+
+    - alert: EvalHubHighAPIErrorRate
+      expr: |
+        sum by (namespace) (
+          rate(http_request_duration_seconds_count{
+            job="evalhub-metrics",
+            namespace="project1",
+            status=~"5.."
+          }[5m])
+        ) > 0.1
+      for: 5m
+      labels:
+        severity: warning
+        namespace: project1
+      annotations:
+        summary: "EvalHub returning elevated HTTP 5xx errors"
+        description: >
+          EvalHub has returned more than 0.1 req/s with HTTP 5xx status
+          over the last 5 minutes. Eval job submissions may be failing.
+          Check: oc logs -n project1 -l app.kubernetes.io/name=evalhub

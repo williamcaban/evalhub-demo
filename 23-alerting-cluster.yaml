@@ -1,0 +1,81 @@
+# EvalHub Alerting Rules — Cluster-level (openshift-monitoring)
+#
+# REQUIRES cluster-admin. Apply separately from 23-alerting.yaml.
+#
+# These rules target the cluster-level Prometheus in openshift-monitoring, which
+# is the only Prometheus instance that scrapes kube-state-metrics and therefore
+# has access to kube_job_status_failed and kube_job_status_completion_time.
+#
+# User-workload Prometheus (project1) does NOT have these metrics — they are
+# not federated by default in OpenShift 4.x.
+#
+# Apply:
+#   oc apply -f 23-alerting-cluster.yaml
+#
+# Verify:
+#   oc get prometheusrule evalhub-eval-job-alerts -n openshift-monitoring
+#
+# Check in console:
+#   OpenShift Console → Observe → Alerting → filter "EvalHub"
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: evalhub-eval-job-alerts
+  namespace: openshift-monitoring
+  labels:
+    app: evalhub-continuous-eval
+    # Required for cluster-level Prometheus to pick up this rule
+    role: alert-rules
+spec:
+  groups:
+  - name: evalhub.eval-jobs
+    interval: 60s
+    rules:
+
+    # Fires immediately when the nightly CronJob exits non-zero.
+    # The CronJob exits 1 when any benchmark breaches its pass_criteria threshold.
+    # Check pod logs for the THRESHOLD BREACH detail:
+    #   oc logs -n project1 -l app=evalhub-continuous-eval --tail=30
+    - alert: EvalHubNightlySafetyBreach
+      expr: |
+        kube_job_status_failed{
+          namespace="project1",
+          job_name=~"nightly-safety-eval-.*"
+        } > 0
+      for: 0m
+      labels:
+        severity: warning
+        namespace: project1
+        team: ai-platform
+      annotations:
+        summary: "EvalHub nightly safety gate failed — threshold breach"
+        description: >
+          Job {{ $labels.job_name }} in namespace {{ $labels.namespace }} failed.
+          One or more safety benchmarks breached their pass_criteria threshold.
+          Check pod logs for the THRESHOLD BREACH table:
+          oc logs -n project1 -l job-name={{ $labels.job_name }} --tail=30
+
+    # Fires when no successful nightly eval has completed in 36 hours.
+    # Indicates the CronJob is suspended, stuck, or the cluster is unhealthy.
+    - alert: EvalHubNightlyEvalMissed
+      expr: |
+        (
+          time() - max(
+            kube_job_status_completion_time{
+              namespace="project1",
+              job_name=~"nightly-safety-eval-.*"
+            }
+          )
+        ) > 129600
+      for: 0m
+      labels:
+        severity: warning
+        namespace: project1
+        team: ai-platform
+      annotations:
+        summary: "EvalHub nightly safety eval has not run in 36 hours"
+        description: >
+          No successful nightly-safety-eval job has completed in the last 36 hours.
+          Last completion was {{ $value | humanizeDuration }} ago.
+          Check: oc get cronjob nightly-safety-eval -n project1
