@@ -317,7 +317,42 @@ oc create secret generic evalhub-monitoring-token \
   --dry-run=client -o yaml | oc apply -f -
 ```
 
-#### 4. Apply datasource and dashboard
+#### 4. Grant Perses server access to the token Secret
+
+The Perses server (`perses-sa` in `openshift-operators`) resolves the datasource
+secret at query time from the `PersesDatasource` CR's namespace (`project1`).
+Without this RoleBinding every panel returns *"secret not found"*.
+
+```bash
+cat <<'RBAC' | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: perses-secret-reader
+  namespace: project1
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["evalhub-monitoring-token"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: perses-sa-secret-reader
+  namespace: project1
+subjects:
+  - kind: ServiceAccount
+    name: perses-sa
+    namespace: openshift-operators
+roleRef:
+  kind: Role
+  name: perses-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+RBAC
+```
+
+#### 5. Apply datasource and dashboard
 
 ```bash
 oc apply -f 25-perses-datasource.yaml

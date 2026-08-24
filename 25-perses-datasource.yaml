@@ -32,6 +32,37 @@
 #     -n openshift-operators \
 #     --dry-run=client -o yaml | oc apply -f -
 #
+#   # Grant perses-sa read access to the token Secret in project1.
+#   # The Perses server (perses-sa, openshift-operators) reads the secret at
+#   # query time from the datasource namespace — without this RoleBinding all
+#   # panels return "secret not found".
+#   oc apply -f - <<'RBAC'
+#   apiVersion: rbac.authorization.k8s.io/v1
+#   kind: Role
+#   metadata:
+#     name: perses-secret-reader
+#     namespace: project1
+#   rules:
+#     - apiGroups: [""]
+#       resources: ["secrets"]
+#       verbs: ["get"]
+#       resourceNames: ["evalhub-monitoring-token"]
+#   ---
+#   apiVersion: rbac.authorization.k8s.io/v1
+#   kind: RoleBinding
+#   metadata:
+#     name: perses-sa-secret-reader
+#     namespace: project1
+#   subjects:
+#     - kind: ServiceAccount
+#       name: perses-sa
+#       namespace: openshift-operators
+#   roleRef:
+#     kind: Role
+#     name: perses-secret-reader
+#     apiGroup: rbac.authorization.k8s.io
+#   RBAC
+#
 #   # Apply datasource and dashboard
 #   oc apply -f 25-perses-datasource.yaml
 #   oc apply -f 25-perses-dashboard.yaml

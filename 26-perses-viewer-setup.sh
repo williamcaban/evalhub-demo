@@ -25,9 +25,41 @@ oc create serviceaccount perses-viewer \
   -n "${NAMESPACE}" \
   --dry-run=client -o yaml | oc apply -f -
 
-log "Granting view ClusterRole to perses-viewer..."
+log "Granting view ClusterRole to perses-viewer (for Thanos querier auth)..."
 oc adm policy add-cluster-role-to-user view \
   "system:serviceaccount:${NAMESPACE}:perses-viewer"
+
+# Grant the Perses server SA read access to the token secret.
+# The Perses server (perses-sa in openshift-operators) looks up the datasource
+# secret from the PersesDatasource CR's namespace at query time. Without this
+# RoleBinding it cannot read the secret and all panels return 'secret not found'.
+log "Granting perses-sa read access to evalhub-monitoring-token Secret..."
+cat <<RBAC | oc apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: perses-secret-reader
+  namespace: ${NAMESPACE}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get"]
+    resourceNames: ["evalhub-monitoring-token"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: perses-sa-secret-reader
+  namespace: ${NAMESPACE}
+subjects:
+  - kind: ServiceAccount
+    name: perses-sa
+    namespace: openshift-operators
+roleRef:
+  kind: Role
+  name: perses-secret-reader
+  apiGroup: rbac.authorization.k8s.io
+RBAC
 
 # ── Token Secret ──────────────────────────────────────────────────────────────
 # The Perses instance runs in openshift-operators and resolves secret references
