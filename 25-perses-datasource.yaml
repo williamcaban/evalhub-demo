@@ -53,6 +53,10 @@ spec:
             # Auth: Perses forwards the user's Kubernetes token (kubernetesAuth).
             # TLS: service CA cert mounted at /ca/service-ca.crt by COO.
             url: https://thanos-querier.openshift-monitoring.svc.cluster.local:9092?namespace=project1
+            # References the Perses-internal secret auto-created by the operator
+            # from spec.client.tls below. Named <datasource-name>-secret.
+            # This is a Perses secret (in /perses/secrets/), NOT a Kubernetes Secret.
+            secret: evalhub-user-workload-monitoring-secret
   client:
     tls:
       enable: true
