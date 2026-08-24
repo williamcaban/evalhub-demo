@@ -323,6 +323,14 @@ oc get persesdatasource evalhub-user-workload-monitoring -n project1 \
 OpenShift Console → **Observe → Dashboards (Perses)** → select namespace `project1`
 → select **EvalHub — Continuous Evaluation & Drift Monitoring**.
 
+![EvalHub Continuous Evaluation & Drift Monitoring dashboard on RHOAI 3.5 EA2](assets/evalhub-continuous-eval-drift-3_5ea2.png)
+
+The dashboard shows (left to right, top to bottom):
+- **Status Summary**: EvalHub server health, seconds since last eval run, count of breached benchmarks (red = breach)
+- **Per-Benchmark Pass / Fail**: one stat panel per benchmark — green (0 = pass), red (1 = breach)
+- **Benchmark Score Trends**: time series of raw scores from the Pushgateway across runs
+- **EvalHub Server Health**: API request rate and 5xx error rate (collapsed by default)
+
 ### Dashboard metrics reference
 
 | Panel | Metric | Source |
