@@ -59,13 +59,6 @@ data:
         - "ragas_rag_default is the fast starting point; ragas_rag_full runs all metrics"
         - "faithfulness score: 1.0 = answer fully grounded in context (higher is better)"
 
-    # ⚠️  KNOWN ISSUE (as of 2026-08-14): The RAGAS library version in
-    #    quay.io/evalhub/community-ragas:latest is newer than the adapter expects.
-    #    AnswerRelevancy(llm=llm, embeddings=emb) raises:
-    #    "Collections metrics only support modern InstructorLLM"
-    #    Fix: update /app/main.py in eval-hub-contrib to use InstructorLLM factory.
-    #    Dataset path: /bundled-data/dataset.jsonl (use data_path parameter).
-
     runtime:
       k8s:
         image: quay.io/evalhub/community-ragas:latest
@@ -84,14 +77,13 @@ data:
         name: RAG Default Suite
         description: >
           Default RAG evaluation: answer relevancy, context precision, faithfulness,
-          context recall, and answer correctness.
+          and context recall.
         category: rag_evaluation
         metrics:
           - answer_relevancy
           - context_precision
           - faithfulness
           - context_recall
-          - answer_correctness
         tags: [ragas, rag, default]
         primary_score:
           metric: faithfulness
@@ -103,24 +95,69 @@ data:
         name: RAG Full Suite
         description: >
           Comprehensive RAG evaluation with all available RAGAS metrics including
-          semantic similarity, factual correctness, noise sensitivity, and
+          answer similarity, factual correctness, noise sensitivity, and
           response groundedness.
         category: rag_evaluation
         metrics:
           - answer_relevancy
-          - semantic_similarity
+          - answer_similarity
           - context_precision
           - faithfulness
           - context_recall
           - context_entity_recall
-          - answer_accuracy
-          - context_relevance
+          - nv_accuracy
+          - nv_context_relevance
           - factual_correctness
           - noise_sensitivity
-          - response_groundedness
+          - nv_response_groundedness
         tags: [ragas, rag, comprehensive]
         primary_score:
           metric: faithfulness
           lower_is_better: false
         pass_criteria:
           threshold: 0.5
+
+    parameters:
+      - name: metrics
+        type: array
+        default: null
+        description: >
+          List of RAGAS metric names to evaluate. Defaults to the benchmark's metric list.
+
+      - name: embedding_model
+        type: string
+        default: null
+        description: Model name for embeddings (defaults to the same model as LLM judge)
+
+      - name: embedding_url
+        type: string
+        default: null
+        description: Base URL for embeddings endpoint (defaults to model URL)
+
+      - name: max_tokens
+        type: integer
+        default: null
+        description: Maximum tokens for LLM completions
+
+      - name: temperature
+        type: number
+        default: null
+        description: Sampling temperature for LLM completions
+
+      - name: column_map
+        type: object
+        default: null
+        description: >
+          Mapping from dataset column names to RAGAS expected names
+          (user_input, response, retrieved_contexts, reference)
+
+      - name: max_workers
+        type: integer
+        default: 1
+        description: >
+          Maximum parallel workers for RAGAS evaluation (1–10).
+
+      - name: data_path
+        type: string
+        default: null
+        description: Explicit path to dataset file (overrides default /test_data and /data resolution)

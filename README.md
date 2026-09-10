@@ -16,7 +16,7 @@ Console. Tested on a single NVIDIA L4 GPU with Qwen3-8B-FP8 as the judge model.
 | Area | Files | Description |
 |---|---|---|
 | Core deployment | `01–06`, `deploy.sh` | Namespace, RBAC, MLflow, EvalHub CR, network policy, model serving |
-| Evaluation providers | `10–16-*-provider.yaml` | Inspect AI, Garak, RULER, RAGAS, GuideLLM (community ConfigMaps) |
+| Evaluation providers | `10–17-*-provider.yaml` | Inspect AI, Garak, RULER, RAGAS, GuideLLM, NeMo Guardrails (community ConfigMaps) |
 | Evaluation collections | `20–21-collections-*.yaml` | 7 custom collections with research-calibrated thresholds |
 | Individual eval configs | `evals/` | Per-benchmark YAML configs for all supported providers |
 | Day 2 — continuous eval | `21-continuous-eval-cronjob.yaml` | Nightly K8s CronJob with threshold gate |
@@ -37,7 +37,7 @@ redhat-ods-applications
 project1
   EvalHub Server  ── route: evalhub-project1.apps.<cluster>
   ├── Providers: lm-evaluation-harness, lighteval, ibm-clear (operator)
-  │             inspect, garak, guidellm, ruler, ragas (ConfigMap)
+  │             inspect, garak, guidellm, ruler, ragas, nemo-guardrails (ConfigMap)
   ├── Collections: combined-safety-alignment, nightly-safety-check, ...
   ├── Qwen3-8B-FP8 ── InferenceService, 1× L4 GPU
   ├── Prometheus Pushgateway ── per-benchmark scores → alerting + dashboard
@@ -90,11 +90,12 @@ uv run evalhub eval run --config evals/arc-easy.yaml --wait
 | `lm_evaluation_harness` | 188 | ✅ |
 | `lighteval` | 28 | ✅ generative; logprob pending PR #115 |
 | `ibm-clear` | 1 | ✅ |
-| `inspect` | 20 | ⚠️ Petri ✅; inspect-evals blocked by G9 (Responses API) |
+| `inspect` | 75 | ✅ Petri (40 seeds) + Bloom + GDM + AgentHarm + inspect-evals |
 | `garak` | 9 | ✅ |
 | `guidellm` | 7 | ✅ |
 | `ruler` | 13 | ❌ image not yet published |
-| `ragas` | 2 | ❌ InstructorLLM API mismatch |
+| `ragas` | 2 | ✅ fixed (sidecar credential injection + InstructorLLM — contrib PR #95) |
+| `nemo-guardrails` | 4 | ✅ prompt injection, toxicity, PII, tool response injection |
 
 See [`docs/setup.md`](docs/setup.md#known-issues) for details on each issue.
 

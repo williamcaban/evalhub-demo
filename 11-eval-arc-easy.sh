@@ -27,7 +27,7 @@ echo "Generating EvalHub token..."
 TOKEN=$(oc create token evalhub-user-sa -n "${NAMESPACE}" --duration=4h)
 
 # ── Submit job ─────────────────────────────────────────────────────────────────
-echo "Submitting arc_easy evaluation (${LIMIT} samples)..."
+echo "Submitting arc_easy evaluation (full dataset — lm-evaluation-harness ignores limit)..."
 RESPONSE=$(curl -sk -X POST \
   -H "Authorization: Bearer ${TOKEN}" \
   -H "X-Tenant: ${NAMESPACE}" \
