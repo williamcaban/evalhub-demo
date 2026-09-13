@@ -33,6 +33,7 @@ spec:
   - ruler
   - ragas
   - guidellm
+  - nemo-guardrails
 
   # MLflow integration.
   # The operator already sets MLFLOW_TOKEN_PATH (projected SA token for auth),
