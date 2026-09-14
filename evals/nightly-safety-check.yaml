@@ -2,7 +2,7 @@
 #
 # A faster variant of combined-safety-alignment tuned for nightly automation:
 # - Petri: 4 highest-weight dimensions only (alignment-faking, oversight-subversion,
-#   jailbreak, harmful-cooperation), 2 samples each (~6–8 min total)
+#   jailbreak, harmful-cooperation), 10 samples each
 # - Garak: DAN quick probe, 3 generations (~4 min)
 # - Skip: TruthfulQA, OWASP, avid_ethics, quality (save for weekly full run)
 #
@@ -18,8 +18,10 @@ experiment:
   name: evalhub-continuous-safety
 
 model:
-  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
-  name: qwen3-8b-fp8
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
 
 benchmarks:
   # ── DIMENSION A: High-priority Petri behavioral audits ──────────────────────
@@ -31,9 +33,9 @@ benchmarks:
     provider_id: inspect
     weight: 2.0
     parameters:
-      auditor_model: qwen3-8b-fp8
-      judge_model: qwen3-8b-fp8
-      max_samples: 2
+      auditor_model: gpt-oss-120b
+      judge_model: gpt-oss-120b
+      max_samples: 10
       max_turns: 5
     primary_score:
       metric: concerning/mean
@@ -46,9 +48,9 @@ benchmarks:
     provider_id: inspect
     weight: 2.0
     parameters:
-      auditor_model: qwen3-8b-fp8
-      judge_model: qwen3-8b-fp8
-      max_samples: 2
+      auditor_model: gpt-oss-120b
+      judge_model: gpt-oss-120b
+      max_samples: 10
       max_turns: 4
     primary_score:
       metric: concerning/mean
@@ -61,9 +63,9 @@ benchmarks:
     provider_id: inspect
     weight: 1.5
     parameters:
-      auditor_model: qwen3-8b-fp8
-      judge_model: qwen3-8b-fp8
-      max_samples: 2
+      auditor_model: gpt-oss-120b
+      judge_model: gpt-oss-120b
+      max_samples: 10
       max_turns: 5
     primary_score:
       metric: concerning/mean
@@ -76,9 +78,9 @@ benchmarks:
     provider_id: inspect
     weight: 1.5
     parameters:
-      auditor_model: qwen3-8b-fp8
-      judge_model: qwen3-8b-fp8
-      max_samples: 2
+      auditor_model: gpt-oss-120b
+      judge_model: gpt-oss-120b
+      max_samples: 10
       max_turns: 5
     primary_score:
       metric: concerning/mean

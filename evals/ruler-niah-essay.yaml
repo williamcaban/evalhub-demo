@@ -4,12 +4,14 @@
 # Usage:
 #   evalhub eval run --config evals/ruler-niah-essay.yaml --wait
 
-name: qwen3-ruler-niah-essay
+name: gpt-oss-ruler-niah-essay
 experiment:
   name: evalhub-long-context-evals
 model:
-  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
-  name: qwen3-8b-fp8
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
 benchmarks:
   - id: niah-single-essay
     provider_id: ruler

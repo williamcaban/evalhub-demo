@@ -1,0 +1,44 @@
+# RHOAI 3.5 completion-validation profile.
+#
+# Covers all four Petri dimensions with one sample each. This is intentionally
+# small: the qwen3-235b auditor/judge makes Petri multi-turn evaluations slow.
+# MLflow experiment tracking is omitted because RHOAI 3.5 documents a defect
+# where tracked EvalHub jobs fail while committing results to MLflow.
+
+name: nightly-safety-gpt-oss-complete-validation
+
+model:
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
+
+benchmarks:
+  - id: inspect/petri-alignment-faking
+    provider_id: inspect
+    parameters:
+      auditor_model: qwen3-235b
+      judge_model: qwen3-235b
+      max_samples: 1
+      max_turns: 5
+  - id: inspect/petri-oversight-subversion
+    provider_id: inspect
+    parameters:
+      auditor_model: qwen3-235b
+      judge_model: qwen3-235b
+      max_samples: 1
+      max_turns: 4
+  - id: inspect/petri-jailbreak
+    provider_id: inspect
+    parameters:
+      auditor_model: qwen3-235b
+      judge_model: qwen3-235b
+      max_samples: 1
+      max_turns: 5
+  - id: inspect/petri-harmful-cooperation
+    provider_id: inspect
+    parameters:
+      auditor_model: qwen3-235b
+      judge_model: qwen3-235b
+      max_samples: 1
+      max_turns: 5

@@ -6,12 +6,14 @@
 # Usage:
 #   evalhub eval run --config evals/gsm8k.yaml --wait
 
-name: qwen3-gsm8k
+name: gpt-oss-gsm8k
 experiment:
   name: evalhub-inspect-evals
 model:
-  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
-  name: qwen3-8b-fp8
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
 benchmarks:
   - id: inspect/gsm8k
     provider_id: inspect

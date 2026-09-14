@@ -2,7 +2,7 @@
 
 **Audience**: Platform engineers and MLOps practitioners running AI workloads in production  
 **Duration**: ~60 min (30 min presenter demo + 30 min hands-on)  
-**Cluster**: RHOAI 3.5 EA2+ with EvalHub, Qwen3-8B-FP8, MLflow  
+**Cluster**: RHOAI 3.5 EA2+ with EvalHub, MaaS `gpt-oss-120b`, Qwen3-235B auditor/judge, MLflow
 **Platform**: RHOAI (evals, guardrails, and red-teaming are RHOAI-only — not RHAII)
 
 ---
@@ -15,7 +15,7 @@ Most teams handle this with manual spot-checks or silence until something breaks
 
 **Two scenarios today:**
 
-1. **Continuous evaluation via pipeline** — a nightly Kubernetes CronJob triggers an EvalHub collection run across safety and alignment dimensions. Every morning your team has fresh results in MLflow. No human intervention required.
+1. **Continuous evaluation via pipeline** — after upgrading to a build containing the RHOAI 3.5 MLflow result-commit fix, a nightly Kubernetes CronJob can trigger an EvalHub collection run across safety and alignment dimensions. On the current lab build, use the no-experiment validation profile and do not claim MLflow persistence.
 
 2. **Drift monitoring** — a comparison script runs after a model update and compares scores against a recorded baseline. If any dimension degrades beyond your delta threshold, the script exits non-zero and blocks promotion.
 
@@ -35,7 +35,7 @@ Most teams handle this with manual spot-checks or silence until something breaks
  │                └─▶ Collections + pass_criteria thresholds      │
  │                      ├─▶ Inspect adapter (Petri behavioral)   │
  │                      └─▶ Garak adapter (DAN red-team)         │
- │                              └─▶ MLflow (results + history)   │
+ │                              └─▶ MLflow (after supported fix)  │
  │                                                                │
  │  Drift Monitor (./22-drift-monitor.sh)                         │
  │  └─▶ evalhub collections run combined-safety-alignment        │
@@ -56,9 +56,8 @@ Complete the main EvalHub setup first (Steps 1–7 in the root README):
 # Verify EvalHub is running
 uv run evalhub health
 
-# Verify the Qwen3 judge model is serving
-oc get inferenceservice qwen3-8b-fp8 -n project1
-# Expected: READY=True
+# Verify MaaS external models are available
+oc get externalmodel -n external-models gpt-oss-120b qwen3-235b
 
 # Verify MLflow is accessible
 oc get route mlflow -n redhat-ods-applications
@@ -111,10 +110,8 @@ Point out:
 ### Step 2: Trigger a manual run to demonstrate
 
 ```bash
-uv run evalhub collections run nightly-safety-check \
-  --model-url http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1 \
-  --model-name qwen3-8b-fp8 \
-  --wait
+uv run evalhub eval run \
+  --config evals/nightly-safety-check-complete.yaml --wait
 ```
 
 Watch the eval pods spin up:
@@ -143,7 +140,8 @@ Then open the MLflow UI:
 echo "MLflow: https://$(oc get route mlflow -n redhat-ods-applications -o jsonpath='{.spec.host}')/mlflow"
 ```
 
-Navigate to experiment `evalhub-continuous-safety`. Show the run, its metrics, and the timestamp.
+Navigate to the configured MLflow experiment only after verifying that the job
+response contains `mlflow_experiment_url` or `mlflow_run_id`.
 
 **Talking point**: *"These are the numbers your team wakes up to. Safety score, alignment score, DAN resistance — every night. Reproducible, timestamped, versioned."*
 
@@ -154,8 +152,8 @@ Create the runner Secret (once per cluster):
 ```bash
 oc create secret generic evalhub-runner-config -n project1 \
   --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
-  --from-literal=model_url="http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-  --from-literal=model_name="qwen3-8b-fp8"
+  --from-literal=model_url="https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1" \
+  --from-literal=model_name="gpt-oss-120b"
 ```
 
 Deploy the CronJob:
@@ -267,7 +265,9 @@ Exit code is 1 — if this runs in CI/CD, the pipeline fails and the model updat
 echo "MLflow: https://$(oc get route mlflow -n redhat-ods-applications -o jsonpath='{.spec.host}')/mlflow"
 ```
 
-Open MLflow → experiment `evalhub-continuous-safety`. Both runs are visible. The metric table shows each score over time — you can see exactly which dimension drifted and by how much.
+Open MLflow → experiment `evalhub-continuous-safety` only on a fixed build. On
+RHOAI 3.5 builds with the known defect, use the EvalHub result payload and the
+ConfigMap baseline instead; the run is not reliably stored in MLflow.
 
 **Talking point**: *"This is what your team uses to triage. The safety score held. The alignment-faking score drifted. You now know where to investigate — not just that something broke, but exactly what dimension and by how much."*
 
@@ -275,7 +275,9 @@ Open MLflow → experiment `evalhub-continuous-safety`. Both runs are visible. T
 
 ## Part 3 — What's Next (5 min)
 
-Everything demonstrated today runs on RHOAI 3.5. The CronJob pattern for continuous evaluation and the drift monitor script are production-ready today.
+The CronJob pattern is valid, but MLflow-backed continuous evaluation and drift
+comparison require a RHOAI build containing the documented EvalHub MLflow
+result-commit fix.
 
 | Capability | RHOAI 3.5 (now) |
 |---|---|

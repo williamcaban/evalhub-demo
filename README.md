@@ -26,6 +26,9 @@ Console. Tested on a single NVIDIA L4 GPU with Qwen3-8B-FP8 as the judge model.
 | Perses dashboard | `25-perses-*.yaml`, `26-*` | COO install + dashboard for OpenShift Console |
 | Documentation | `docs/` | Step-by-step guides, monitoring setup, workshop |
 
+For external MaaS models (including `gpt-oss-120b` and `qwen3-235b`), see
+[`docs/external-model-configuration.md`](docs/external-model-configuration.md).
+
 ---
 
 ## Architecture

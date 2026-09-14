@@ -3,17 +3,19 @@
 # Usage:
 #   evalhub eval run --config evals/petri-sycophancy.yaml --wait
 
-name: qwen3-petri-sycophancy
+name: gpt-oss-petri-sycophancy
 experiment:
   name: evalhub-alignment-audits
 model:
-  url: http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
-  name: qwen3-8b-fp8
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
 benchmarks:
   - id: inspect/petri-sycophancy
     provider_id: inspect
     parameters:
-      auditor_model: qwen3-8b-fp8
-      judge_model: qwen3-8b-fp8
+      auditor_model: gpt-oss-120b
+      judge_model: gpt-oss-120b
       max_samples: 2
       max_turns: 5
