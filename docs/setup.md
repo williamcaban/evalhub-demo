@@ -100,6 +100,11 @@ echo "MLflow UI: https://$(oc get route mlflow -n redhat-ods-applications \
 
 ```bash
 oc apply -f 01-namespace.yaml
+# Required by the RHOAI 3.5 EvalHub multi-tenancy guide.
+oc label namespace project1 evalhub.trustyai.opendatahub.io/tenant= --overwrite
+oc label namespace project1 opendatahub.io/generated-namespace=true --overwrite
+# Required when using the Kubernetes-backed MLflow workspace provider.
+oc label namespace project1 opendatahub.io/global-mlflow-workspace=project1 --overwrite
 oc apply -f 02-rbac.yaml
 oc apply -f 04-evalhub-cr.yaml          # includes spec.providers + spec.collections
 oc apply -f 05-allow-egress-netpol.yaml  # allows eval job pods to reach HuggingFace Hub
@@ -173,7 +178,11 @@ uv run evalhub collections list
 
 ---
 
-## Step 6 — Deploy the inference model
+## Step 6 — Optional local inference model
+
+The workshop cluster used for this demo has no NVIDIA GPU capacity. Skip this
+step when using the MaaS external models documented in
+[external-model-configuration.md](external-model-configuration.md).
 
 ```bash
 oc apply -f 06-qwen3-judge.yaml
@@ -199,7 +208,9 @@ oc get inferenceservice qwen3-8b-fp8 -n project1
 
 ## Step 7 — Run individual evaluations
 
-All model URLs use the internal svc address with port 8080.
+The runnable external-model configs use MaaS URLs and `maas-model-token`.
+The following collection examples are legacy local-inference examples and
+require a GPU-backed KServe model.
 
 ```bash
 # LM Evaluation Harness — ARC reasoning (~9 min, 2376 samples)
@@ -236,22 +247,23 @@ oc get pods -n project1 -w | grep -v "evalhub\|qwen3"   # watch eval pods
 Collections bundle multiple benchmarks into a single job submission.
 
 ```bash
-# Nightly safety check (5 benchmarks, ~12-15 min)
-uv run evalhub collections run nightly-safety-check \
-  --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-  --model-name "qwen3-8b-fp8" --wait
+# Completion validation for the external-model lab (4 Petri samples total).
+# This profile omits MLflow experiment tracking because RHOAI 3.5 has a
+# documented EvalHub result-commit defect.
+uv run evalhub eval run \
+  --config evals/nightly-safety-check-complete.yaml --wait
 
-# Full safety + alignment suite (13 benchmarks, ~60-90 min)
+# Legacy local-inference example (requires GPU and model Secret adaptation)
 uv run evalhub collections run combined-safety-alignment \
   --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
   --model-name "qwen3-8b-fp8"
 
-# Garak red-team (7 probes, 3 generations each, ~30-60 min)
+# Legacy local-inference example (requires GPU and model Secret adaptation)
 uv run evalhub collections run garak-red-team \
   --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
   --model-name "qwen3-8b-fp8"
 
-# GuideLLM performance
+# Legacy local-inference example (requires GPU and model Secret adaptation)
 uv run evalhub collections run guidellm-perf \
   --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
   --model-name "qwen3-8b-fp8"
@@ -275,12 +287,13 @@ See **[workshop-day2-continuous-eval.md](workshop-day2-continuous-eval.md)** for
 Quick start for Day 2:
 
 ```bash
-# Register Day 2 collection and apply CronJob
+# Register Day 2 collection and apply CronJob only after upgrading past the
+# RHOAI 3.5 MLflow result-commit defect.
 oc apply -f 21-collections-day2.yaml
 oc create secret generic evalhub-runner-config -n project1 \
   --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
-  --from-literal=model_url="http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-  --from-literal=model_name="qwen3-8b-fp8"
+  --from-literal=model_url="https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1" \
+  --from-literal=model_name="gpt-oss-120b"
 oc apply -f 21-continuous-eval-cronjob.yaml
 
 # Record a baseline after a known-good run
@@ -322,9 +335,16 @@ Qwen3-8B in thinking mode exceeds the 7200-second job timeout on oversight scena
 
 `community-ragas:latest` raises `ValueError: Collections metrics only support modern InstructorLLM`. Fix requires updating `main.py` in the container.
 
-### MLflow `mlflow_run_id` null
+### MLflow tracking fails with `Workspace context is required`
 
-The EvalHub job response always shows `mlflow_run_id: null`. Find runs in the MLflow UI using the experiment name and job UUID as the run name.
+This is a documented RHOAI 3.5 EvalHub defect: a job can run successfully but
+fail when committing results to MLflow. Verify that the deployment contains
+`MLFLOW_TRACKING_URI`, `MLFLOW_CA_CERT_PATH`, `MLFLOW_TOKEN_PATH`, and
+`MLFLOW_WORKSPACE`, but do not add ad-hoc workspace fields to the job request.
+For completion validation, omit the `experiment` block and use
+`evals/nightly-safety-check-complete.yaml`. Do not claim that this workaround
+stored results in MLflow. Upgrade to a build containing the fix before using
+MLflow-backed nightly or drift workflows.
 
 ### lm-eval `limit` parameter silently ignored
 
@@ -348,6 +368,7 @@ The EvalHub job response always shows `mlflow_run_id: null`. Find runs in the ML
 | Provider ConfigMaps missing from project1 | Operator hasn't reconciled | `oc delete pod -n redhat-ods-applications -l control-plane=trustyai-service-operator-controller-manager` |
 | `401 Unauthorized` on EvalHub API | Token expired | `uv run evalhub config set token "$(oc create token evalhub-user-sa -n project1 --duration=8h)"` |
 | `400 Bad Request: unable_to_authorize_request` | RBAC missing | `oc apply -f 02-rbac.yaml` |
+| `400 Workspace context is required` | RHOAI 3.5 EvalHub MLflow result-commit defect | Omit `experiment` for runtime validation; upgrade before MLflow-backed runs |
 | Collection runs show UUID IDs | Collections created via BYOP API | Re-register via `20-collections-system.yaml` + `oc apply -f 04-evalhub-cr.yaml` |
 | EvalHub DB wiped after restart | SQLite in-memory DB | Re-submit jobs |
 | MLflow PVC stuck | Migration job error loop | `oc patch pvc mlflow-pvc -n redhat-ods-applications -p '{"metadata":{"finalizers":[]}}' --type=merge` |
