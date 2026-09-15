@@ -8,7 +8,7 @@ tags: [evalhub, mlflow, rhoai-3.5, openshift, troubleshooting]
 refs:
   - ./setup.md
   - ./external-model-configuration.md
-updated: 2026-09-14
+updated: 2026-09-15
 ---
 
 # EvalHub and MLflow lessons learned
@@ -66,6 +66,27 @@ is a product-version defect, not an external-model authentication problem.
 5. After upgrading, rerun a one-sample tracked smoke evaluation and verify both
    the EvalHub result fields and the MLflow workspace UI before launching the
    10-sample or nightly suite.
+
+## CLI and benchmark parameter lessons
+
+- For LightEval sample limits, use `parameters.num_examples: N`. The upstream
+  LightEval adapter translates this field to LightEval's `--max-samples` flag.
+  `parameters.limit` is not the adapter's sample-count control and must not be
+  used for standalone LightEval examples.
+- `evalhub collections run` submits a collection without an MLflow experiment
+  option. Use `evalhub eval run --config <file>` when MLflow tracking is
+  required, and include `experiment.name` in the YAML.
+- Validate the submitted job, not only the local YAML: check
+  `resource.mlflow_experiment_id`, `results.mlflow_run_id`, and the benchmark's
+  reported sample count.
+- For Inspect/Petri multi-endpoint runs, upgrading the provider image to
+  `inspect-ai 0.3.263` is necessary but does not fix an adapter that places
+  role-specific `base_url` or `api_key` values in `GenerateConfig`. Until the
+  adapter fix is available, use one endpoint/model for target, auditor, and
+  judge.
+- In this demo's tenant namespace, set `spec.tenancy: single` on the EvalHub
+  resource. A `multi` EvalHub in a namespace labeled as an RHOAI tenant is
+  rejected by the controller after a restart.
 
 ## Official references
 
