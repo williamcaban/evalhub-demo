@@ -317,9 +317,12 @@ See **[monitoring-setup.md](monitoring-setup.md)** for Prometheus alerting and P
 **Not affected**: All `inspect/petri-*` benchmarks.  
 **Fix**: Add `responses_api: false` to non-Petri code path in `eval-hub-contrib/adapters/inspect/_routing.py`.
 
-### G8 — Petri multi-model mode blocked (inspect-ai 0.3.246)
+### G8 — Petri multi-model mode requires Inspect AI 0.3.263+
 
-`auditor_base_url` / `judge_base_url` require inspect-ai ≥ 0.4.0.  
+The deployed provider image currently contains inspect-ai 0.3.251, which rejects
+per-role `base_url` and `api_key` fields. Inspect AI 0.3.263 is the current
+0.3.x release and supports the model-role URL/key plumbing needed for separate
+target, auditor, and judge endpoints.
 **Workaround**: Use single-endpoint mode — omit `*_base_url`, pass `auditor_model` and `judge_model` by name. See `PATCH_INSPECT_AI_VERSION.md`.
 
 ### petri-oversight-subversion timeout
@@ -364,7 +367,7 @@ MLflow-backed nightly or drift workflows.
 | ISVC rejected by webhook | Hardware profile not in namespace (G6) | Omit `hardware-profile` annotation; declare GPU directly in `resources` |
 | `404` on `/v1/completions` | `model.name` doesn't match ISVC name (G7) | Match names exactly; no dots allowed in ISVC names |
 | inspect-evals fail with `BadRequestError` | Responses API, vLLM unsupported (G9) | Use Petri benchmarks only |
-| `Unknown GenerateConfig field: base_url` | Needs inspect-ai ≥ 0.4.0 (G8) | Use single-endpoint mode |
+| `Unknown GenerateConfig field: base_url` | Provider is older than inspect-ai 0.3.263 (G8) | Upgrade/rebuild the provider image, or use single-endpoint mode |
 | Provider ConfigMaps missing from project1 | Operator hasn't reconciled | `oc delete pod -n redhat-ods-applications -l control-plane=trustyai-service-operator-controller-manager` |
 | `401 Unauthorized` on EvalHub API | Token expired | `uv run evalhub config set token "$(oc create token evalhub-user-sa -n project1 --duration=8h)"` |
 | `400 Bad Request: unable_to_authorize_request` | RBAC missing | `oc apply -f 02-rbac.yaml` |
