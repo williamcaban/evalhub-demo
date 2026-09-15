@@ -1,0 +1,21 @@
+# OpenBookQA — LightEval knowledge benchmark
+#
+# A small standalone CLI example. The full benchmark contains 500 examples;
+# this demo configuration runs 10 samples against the MaaS gpt-oss model.
+#
+# Usage:
+#   uv run evalhub eval run --config evals/openbookqa.yaml --wait
+
+name: gpt-oss-openbookqa-demo
+experiment:
+  name: evalhub-lighteval-evals
+model:
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
+benchmarks:
+  - id: openbookqa
+    provider_id: lighteval
+    parameters:
+      limit: 10

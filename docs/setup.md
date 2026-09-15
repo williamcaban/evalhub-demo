@@ -231,6 +231,20 @@ uv run evalhub eval run --config evals/garak-owasp.yaml --wait
 uv run evalhub eval run --config evals/guidellm-quick.yaml --wait
 ```
 
+### Standalone benchmark from the CLI
+
+This example runs 10 OpenBookQA samples through the LightEval provider. The
+configuration includes an MLflow experiment so the completed result can be
+tracked in the `project1` workspace.
+
+```bash
+uv run evalhub eval run --config evals/openbookqa.yaml --wait
+```
+
+The same pattern applies to any registered provider benchmark: set the
+`provider_id`, benchmark `id`, model endpoint, authentication Secret, and any
+benchmark-specific parameters in an evaluation YAML file.
+
 Monitor jobs:
 
 ```bash
