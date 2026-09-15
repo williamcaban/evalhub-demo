@@ -5,8 +5,10 @@
 # By default uses Qwen3-8B-FP8 for all roles (target, auditor, judge) on one endpoint.
 #
 # Two-model setup (target and judge/auditor on different endpoints) requires
-# inspect-ai >= 0.3.263. The deployed community-inspect image currently ships
-# with 0.3.251, which rejects per-role base_url/api_key fields.
+# inspect-ai >= 0.3.263 plus adapter role mapping. Inspect accepts per-role
+# base_url in the model spec; credentials must be model arguments or supplied
+# through the provider environment/Secret, not GenerateConfig fields. The
+# deployed community-inspect image currently ships with 0.3.251.
 # See: eval-hub/memory/shared/repos/eval-hub-contrib/adapters/inspect/PATCH_INSPECT_AI_VERSION.md
 #
 # Prerequisites:
@@ -30,7 +32,7 @@ MAX_SAMPLES=2    # Seeds (scenarios) — increase to 10+ for production audits
 MAX_TURNS=5      # Adversarial turns per scenario
 
 # NOTE: For two-model (different target + judge endpoints), use a provider image
-# built with inspect-ai >= 0.3.263.
+# built with inspect-ai >= 0.3.263 and verify the adapter's credential mapping.
 # and add: "auditor_base_url": "<JUDGE_URL>/v1", "judge_base_url": "<JUDGE_URL>/v1"
 
 # ── Token ──────────────────────────────────────────────────────────────────────
