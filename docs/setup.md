@@ -48,6 +48,8 @@ The TrustyAI operator copies provider ConfigMaps into each tenant namespace auto
 
 ```bash
 oc apply -f 10-inspect-provider.yaml   # Inspect AI — 20 benchmarks (Petri + inspect-evals)
+oc apply -f 30-inspect-provider-image.yaml
+oc start-build community-inspect -n project1 --from-file=Dockerfile --follow
 oc apply -f 13-garak-provider.yaml     # Garak — 9 red-teaming benchmarks
 oc apply -f 14-ruler-provider.yaml     # RULER — 13 long-context benchmarks (image pending)
 oc apply -f 15-ragas-provider.yaml     # RAGAS — 2 RAG evaluation benchmarks (API fix pending)

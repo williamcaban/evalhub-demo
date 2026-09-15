@@ -1,0 +1,26 @@
+# Build the custom Inspect provider image in the tenant namespace.
+# The image is intentionally namespace-local so no external registry push or
+# model credentials are required.
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: community-inspect
+  namespace: project1
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: community-inspect
+  namespace: project1
+spec:
+  runPolicy: SerialLatestOnly
+  source:
+    type: Binary
+  strategy:
+    type: Docker
+    dockerStrategy:
+      noCache: true
+  output:
+    to:
+      kind: ImageStreamTag
+      name: community-inspect:0.3.263

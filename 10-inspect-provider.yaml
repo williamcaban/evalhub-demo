@@ -70,7 +70,9 @@ data:
 
     runtime:
       k8s:
-        image: quay.io/evalhub/community-inspect:latest
+        # Built by 30-inspect-provider-image.yaml. This pins Inspect AI to
+        # 0.3.263, which supports per-role model endpoint configuration.
+        image: image-registry.openshift-image-registry.svc:5000/project1/community-inspect:0.3.263
         entrypoint:
           - python
           - main.py

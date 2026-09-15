@@ -4,6 +4,10 @@ metadata:
   name: evalhub
   namespace: project1
 spec:
+  # This demo is deployed in a namespace labeled as an RHOAI tenant. Use
+  # single-tenant mode so the EvalHub controller accepts the placement.
+  tenancy: single
+
   # Database: SQLite in-memory (no Secret required).
   # For persistent deployments, use type: postgresql with a Secret.
   database:
