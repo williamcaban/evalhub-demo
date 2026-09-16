@@ -1,0 +1,41 @@
+# Lighteval knowledge collection — 5 samples per benchmark.
+#
+# The collection is registered with EvalHub. To enable MLflow tracking when
+# running it, submit a job that references the collection and includes an
+# experiment.name field (see evals/lighteval-knowledge-5-mlflow.yaml).
+
+name: lighteval-knowledge-5
+description: >
+  Small knowledge suite via Lighteval for demonstrations and smoke tests.
+  Each benchmark is limited to 5 examples.
+category: knowledge
+tags: [knowledge, factuality, mmlu, lighteval, demo]
+
+benchmarks:
+  - id: mmlu
+    provider_id: lighteval
+    weight: 2.0
+    parameters: {num_examples: 5}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.62}
+
+  - id: triviaqa
+    provider_id: lighteval
+    weight: 1.5
+    parameters: {num_examples: 5}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.60}
+
+  - id: openbookqa
+    provider_id: lighteval
+    weight: 1.5
+    parameters: {num_examples: 5}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.68}
+
+  - id: knowledge
+    provider_id: lighteval
+    weight: 1.0
+    parameters: {num_examples: 5}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.55}

@@ -40,7 +40,7 @@ benchmarks:
   - id: mmlu
     provider_id: lighteval
     weight: 2.0
-    parameters: {}
+    parameters: {num_examples: 10}
     primary_score: {metric: accuracy, lower_is_better: false}
     pass_criteria: {threshold: 0.62}
 
@@ -48,7 +48,7 @@ benchmarks:
   - id: triviaqa
     provider_id: lighteval
     weight: 1.5
-    parameters: {}
+    parameters: {num_examples: 10}
     primary_score: {metric: accuracy, lower_is_better: false}
     pass_criteria: {threshold: 0.60}
 
@@ -56,7 +56,7 @@ benchmarks:
   - id: openbookqa
     provider_id: lighteval
     weight: 1.5
-    parameters: {}
+    parameters: {num_examples: 10}
     primary_score: {metric: accuracy, lower_is_better: false}
     pass_criteria: {threshold: 0.68}
 
@@ -64,6 +64,6 @@ benchmarks:
   - id: knowledge
     provider_id: lighteval
     weight: 1.0
-    parameters: {}
+    parameters: {num_examples: 10}
     primary_score: {metric: accuracy, lower_is_better: false}
     pass_criteria: {threshold: 0.55}

@@ -1,0 +1,12 @@
+# MLflow-tracked execution of collections/lighteval-knowledge-20.yaml.
+
+name: gpt-oss-lighteval-knowledge-20
+experiment:
+  name: evalhub-lighteval-knowledge-20
+model:
+  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
+  name: gpt-oss-120b
+  auth:
+    secret_ref: maas-model-token
+collection:
+  id: f113f878-68ee-4dc2-828e-c85e183afa79

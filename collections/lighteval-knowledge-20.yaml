@@ -1,0 +1,37 @@
+# Lighteval knowledge collection — 20 samples per benchmark.
+
+name: lighteval-knowledge-20
+description: >
+  Knowledge suite via Lighteval for comparison runs. Each benchmark is
+  limited to 20 examples.
+category: knowledge
+tags: [knowledge, factuality, mmlu, lighteval, comparison]
+
+benchmarks:
+  - id: mmlu
+    provider_id: lighteval
+    weight: 2.0
+    parameters: {num_examples: 20}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.62}
+
+  - id: triviaqa
+    provider_id: lighteval
+    weight: 1.5
+    parameters: {num_examples: 20}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.60}
+
+  - id: openbookqa
+    provider_id: lighteval
+    weight: 1.5
+    parameters: {num_examples: 20}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.68}
+
+  - id: knowledge
+    provider_id: lighteval
+    weight: 1.0
+    parameters: {num_examples: 20}
+    primary_score: {metric: accuracy, lower_is_better: false}
+    pass_criteria: {threshold: 0.55}
