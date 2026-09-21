@@ -8,7 +8,7 @@ tags: [evalhub, mlflow, rhoai-3.5, openshift, troubleshooting]
 refs:
   - ./setup.md
   - ./external-model-configuration.md
-updated: 2026-09-15
+updated: 2026-09-21
 ---
 
 # EvalHub and MLflow lessons learned
@@ -87,6 +87,35 @@ is a product-version defect, not an external-model authentication problem.
 - In this demo's tenant namespace, set `spec.tenancy: single` on the EvalHub
   resource. A `multi` EvalHub in a namespace labeled as an RHOAI tenant is
   rejected by the controller after a restart.
+
+## Direct MlflowClient access (bypassing EvalHub server) — a separate code path that works
+
+The defect above is specifically in **EvalHub-server-mediated** MLflow result commit: a full
+EvalHub CR/server receives a tracked job submission and fails to commit the result to MLflow with
+the workspace-context error, even with correct config.
+
+A **different** code path — an adapter or client calling MLflow directly via the eval-hub-sdk's own
+`MlflowClient` (e.g. an adapter running in `EVALHUB_MODE=local`, with no EvalHub CR/server deployed
+or involved at all) — was verified working end-to-end on a separate cluster (wbos, 2026-09-21): a
+real run, metrics, params, and an artifact all logged, then independently re-fetched via the MLflow
+API to confirm. **Do not read that success as evidence the EvalHub-server defect above is fixed** —
+it is a genuinely different code path and was not exercised.
+
+What made the direct path work, once diagnosed:
+
+1. **The tracking URI needs the `/mlflow` path prefix.** Use the MLflow CR's own
+   `status.address.url` (`oc get mlflow mlflow -n redhat-ods-applications -o
+   jsonpath='{.status.address.url}'`) rather than assuming `https://mlflow.<ns>.svc:8443`. Omitting
+   the prefix produces a generic Flask 404 that is easy to misdiagnose as the workspace-context
+   defect above — it isn't; it's just a wrong base URL, and re-testing with the correct prefix
+   resolves it cleanly.
+2. `MLFLOW_WORKSPACE=<namespace>` just needs to name a real k8s namespace for a direct client — no
+   extra workspace-provisioning step was needed once the URL was correct.
+3. **RBAC**: `02-rbac.yaml`'s existing `mlflow.kubeflow.org` grant now includes both `experiments`
+   and `runs` (fixed 2026-09-21) — a direct `MlflowClient` caller needs `runs` too
+   (`get/list/create/update`), or `POST /runs/create` 403s right after experiment lookup succeeds.
+   This wasn't needed before because EvalHub-server-mediated logging uses EvalHub's own elevated
+   service account for the actual MLflow calls, not the tenant RBAC this file grants.
 
 ## Official references
 
