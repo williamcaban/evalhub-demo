@@ -14,6 +14,15 @@ metadata:
 #                                  → mlflow.kubeflow.org/experiments  (on POST)
 #   /api/v1/evaluations/collections → trustyai.opendatahub.io/collections
 #   /api/v1/evaluations/jobs/*/events → trustyai.opendatahub.io/status-events
+#
+# The mlflow.kubeflow.org/{experiments,runs} grants below also cover callers that
+# talk to MLflow directly via the eval-hub-sdk's own MlflowClient (e.g. an adapter
+# running in EVALHUB_MODE=local, bypassing the EvalHub server entirely) rather than
+# through a full EvalHub CR/server. Verified 2026-09-21: `experiments` alone is
+# enough for EvalHub-server-mediated logging (EvalHub's own elevated service
+# account does the actual MLflow calls in that path), but a direct MlflowClient
+# caller also needs `runs` — without it, experiment lookup succeeds and
+# `POST /runs/create` then 403s.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
@@ -37,10 +46,12 @@ rules:
   - mlflow.kubeflow.org
   resources:
   - experiments
+  - runs
   verbs:
   - get
   - list
   - create
+  - update
 ---
 # RoleBinding: bind the SA to the role
 apiVersion: rbac.authorization.k8s.io/v1
