@@ -94,12 +94,12 @@ external model requires authentication.
   `06-qwen3-judge.yaml` manifest unless GPU nodes are added.
 - Keep the EvalHub model Secret in `hermes-sandbox`; the EvalHub controller resolves
   `model.auth.secret_ref` there when creating evaluation jobs.
-- MLflow workspace isolation is enabled, but RHOAI 3.5 has a documented
-  EvalHub defect where jobs with an `experiment` block can fail while saving
-  results to MLflow. This is not fixed by changing the model URL or by adding
-  `mlflow_workspace` to the job payload. Until the cluster is upgraded to a
-  build containing the fix, use the no-experiment smoke path for execution
-  validation and treat MLflow-backed runs as unavailable.
+- MLflow workspace isolation is enabled. A RHOAI 3.5 GA defect (RHOAIENG-66859)
+  could make jobs with an `experiment` block fail while saving results to
+  MLflow; it was **resolved in RHOAI 3.5 EA2** (verified on wbos,
+  rhods-operator 3.5.1 — evals now commit to MLflow). Keep the documented
+  experiment shape (`experiment: { name: <name> }`); the no-experiment smoke
+  path remains for completion-only validation.
 - A tracked job must contain only the documented experiment shape:
   `experiment: { name: <experiment-name> }`. The tenant/workspace comes from
   the EvalHub deployment (`MLFLOW_WORKSPACE=hermes-sandbox`) and MLflow RBAC; do not

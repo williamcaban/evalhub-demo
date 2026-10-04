@@ -262,8 +262,7 @@ Collections bundle multiple benchmarks into a single job submission.
 
 ```bash
 # Completion validation for the external-model lab (4 Petri samples total).
-# This profile omits MLflow experiment tracking because RHOAI 3.5 has a
-# documented EvalHub result-commit defect.
+# This profile omits MLflow experiment tracking (completion-only validation).
 uv run evalhub eval run \
   --config evals/nightly-safety-check-complete.yaml --wait
 
@@ -301,8 +300,8 @@ See **[workshop-day2-continuous-eval.md](workshop-day2-continuous-eval.md)** for
 Quick start for Day 2:
 
 ```bash
-# Register Day 2 collection and apply CronJob only after upgrading past the
-# RHOAI 3.5 MLflow result-commit defect.
+# Register Day 2 collection and apply CronJob. MLflow result-commit works
+# as of RHOAI 3.5 EA2 (RHOAIENG-66859 resolved).
 oc apply -f 21-collections-day2.yaml
 oc create secret generic evalhub-runner-config -n hermes-sandbox \
   --from-literal=evalhub_url="https://$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')" \
@@ -323,13 +322,36 @@ See **[monitoring-setup.md](monitoring-setup.md)** for Prometheus alerting and P
 
 ## Known Issues
 
-### G9 — inspect-evals fail with Responses API
+> **Image versions**: the operator's provider template in
+> `redhat-ods-applications` pins `community-*:v0.5.0` (built ≤ 2026-09-09) and
+> reverts tenant ConfigMap patches within seconds. Several issues below apply
+> **only to the v0.5.0 images**; the current `community-*:latest` builds
+> (Sep–Oct 2026) contain the fixes. To move off v0.5.0, patch the operator's
+> template ConfigMaps — tenant-side overrides do not survive the reconcile
+> loop.
 
-`community-inspect:latest` uses inspect-ai with the OpenAI Responses API format for all non-Petri benchmarks. vLLM rejects these with `BadRequestError`.
+### G9 — inspect-evals fail with Responses API (v0.5.0 image)
 
-**Affected**: `inspect/gsm8k`, `inspect/hellaswag`, `inspect/bbh`, `inspect/winogrande`, `inspect/truthfulqa`, `inspect/humaneval`, `inspect/mbpp`.  
-**Not affected**: All `inspect/petri-*` benchmarks.  
-**Fix**: Add `responses_api: false` to non-Petri code path in `eval-hub-contrib/adapters/inspect/_routing.py`.
+The **v0.5.0** inspect image sends the OpenAI Responses API format for
+non-Petri benchmarks, which some vLLM builds reject. The current
+`community-inspect:latest` does not exhibit this on TMM (verified 2026-10-04:
+279× 200 on `/responses` for strong-reject with zero failures).
+
+**Affected (v0.5.0)**: `inspect/gsm8k`, `inspect/hellaswag`, `inspect/bbh`, `inspect/winogrande`, `inspect/truthfulqa`, `inspect/humaneval`, `inspect/mbpp`.  
+**Not affected**: All `inspect/petri-*` benchmarks.
+
+### inspect/wmdp fails with "No inspect tasks were found" (v0.5.0 image)
+
+`inspect_evals 0.16.0` registers `wmdp_bio` / `wmdp_chem` / `wmdp_cyber` — the
+bare `wmdp` import is the module, not a task. Fixed in
+eval-hub-contrib (mapping → `inspect_evals/wmdp_cyber`); requires an image
+rebuild to take effect in the job pods.
+
+### makemesay fails with `ModuleNotFoundError: No module named 'nltk'` (v0.5.0 image)
+
+The v0.5.0 image predates the NLTK bundling (punkt/punkt_tab/wordnet). Fixed
+since `community-inspect` builds of 2026-09-14 (`latest` has it). No
+config-level workaround — the import is unconditional in the scorer.
 
 ### G8 — Petri multi-model mode blocked (inspect-ai 0.3.246)
 
@@ -345,20 +367,23 @@ Qwen3-8B in thinking mode exceeds the 7200-second job timeout on oversight scena
 
 `quay.io/evalhub/community-ruler:latest` returns `manifest unknown`.
 
-### RAGAS — InstructorLLM API mismatch
+### RAGAS — InstructorLLM API mismatch (v0.5.0 image)
 
-`community-ragas:latest` raises `ValueError: Collections metrics only support modern InstructorLLM`. Fix requires updating `main.py` in the container.
+The **v0.5.0** ragas image raises `ValueError: Collections metrics only
+support modern InstructorLLM`. Fixed in the adapter (llm_factory path) and
+shipped in `community-ragas` builds of 2026-10-01 (`latest`). The v0.5.0 pin
+in the operator template still triggers it on wbos.
 
-### MLflow tracking fails with `Workspace context is required`
+### MLflow tracking fails with `Workspace context is required` (resolved in 3.5 EA2)
 
-This is a documented RHOAI 3.5 EvalHub defect: a job can run successfully but
-fail when committing results to MLflow. Verify that the deployment contains
-`MLFLOW_TRACKING_URI`, `MLFLOW_CA_CERT_PATH`, `MLFLOW_TOKEN_PATH`, and
-`MLFLOW_WORKSPACE`, but do not add ad-hoc workspace fields to the job request.
-For completion validation, omit the `experiment` block and use
-`evals/nightly-safety-check-complete.yaml`. Do not claim that this workaround
-stored results in MLflow. Upgrade to a build containing the fix before using
-MLflow-backed nightly or drift workflows.
+A RHOAI 3.5 GA defect (RHOAIENG-66859) caused jobs to run successfully but
+fail when committing results to MLflow. **Resolved as of RHOAI 3.5 EA2**
+(verified on wbos with rhods-operator 3.5.1): evals with an `experiment` block
+commit results to MLflow. The no-experiment smoke path
+(`evals/nightly-safety-check-complete.yaml`) remains valid for
+completion-only validation. The evalhub-demo eval configs now carry
+`experiment` blocks and commit to MLflow (`evalhub-safety-evals`,
+`evalhub-lmeval-evals`, etc.).
 
 ### lm-eval `limit` parameter silently ignored
 
@@ -382,7 +407,7 @@ MLflow-backed nightly or drift workflows.
 | Provider ConfigMaps missing from hermes-sandbox | Operator hasn't reconciled | `oc delete pod -n redhat-ods-applications -l control-plane=trustyai-service-operator-controller-manager` |
 | `401 Unauthorized` on EvalHub API | Token expired | `uv run evalhub config set token "$(oc create token evalhub-user-sa -n hermes-sandbox --duration=8h)"` |
 | `400 Bad Request: unable_to_authorize_request` | RBAC missing | `oc apply -f 02-rbac.yaml` |
-| `400 Workspace context is required` | RHOAI 3.5 EvalHub MLflow result-commit defect | Omit `experiment` for runtime validation; upgrade before MLflow-backed runs |
+| `400 Workspace context is required` | RHOAI 3.5 GA MLflow result-commit defect (RHOAIENG-66859; resolved in 3.5 EA2) | Upgrade to 3.5 EA2+; omit `experiment` for completion-only validation |
 | Collection runs show UUID IDs | Collections created via BYOP API | Re-register via `20-collections-system.yaml` + `oc apply -f 04-evalhub-cr.yaml` |
 | EvalHub DB wiped after restart | SQLite in-memory DB | Re-submit jobs |
 | MLflow PVC stuck | Migration job error loop | `oc patch pvc mlflow-pvc -n redhat-ods-applications -p '{"metadata":{"finalizers":[]}}' --type=merge` |
