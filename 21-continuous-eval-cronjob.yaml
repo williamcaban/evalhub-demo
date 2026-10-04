@@ -16,8 +16,8 @@
 #   # Create the runner config Secret (update values for your cluster/model)
 #   oc create secret generic evalhub-runner-config -n project1 \
 #     --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
-#     --from-literal=model_url="http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-#     --from-literal=model_name="qwen3-8b-fp8"
+#     --from-literal=model_url="https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+#     --from-literal=model_name="qwen38-27b"
 #
 #   oc apply -f 21-continuous-eval-cronjob.yaml
 #

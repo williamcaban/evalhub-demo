@@ -1,15 +1,26 @@
-# inspect/makemesay — test that NLTK punkt/punkt_tab/wordnet are bundled
-# in the community-inspect:nltk-fix image and available without network access.
+# inspect/makemesay — requires community-inspect:latest (v0.5.0 lacks the nltk
+# package). Verified on this cluster (2026-10-04): :latest bundles nltk 3.10.3
+# plus punkt/punkt_tab/wordnet in /app/.cache/inspect_evals/make_me_say/nltk_data,
+# so the task's ensure_nltk_resource() finds everything without egress.
+#
+# ⚠️ Cluster blocker (2026-10-04): the source provider ConfigMap
+# trustyai-service-operator-evalhub-provider-inspect in redhat-ods-applications
+# still pins community-inspect:v0.5.0. The TrustyAI EvalHub operator reconciles
+# the tenant copy (evalhub-provider-inspect in the tenant namespace) from that source
+# every ~5min, so tenant-side patches to :latest are reverted within seconds
+# (verified: patch lands, resourceVersion bumps, image tag back to v0.5.0).
+# Fix requires cluster-admin: update the source ConfigMap image tag to :latest,
+# then let the operator sync and rerun this eval.
 #
 # Usage:
 #   evalhub eval run --config evals/makemesay.yaml --wait
 
-name: gpt-oss-makemesay
+name: qwen38-makemesay
 experiment:
   name: evalhub-inspect-evals
 model:
-  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
-  name: gpt-oss-120b
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
   auth:
     secret_ref: maas-model-token
 benchmarks:

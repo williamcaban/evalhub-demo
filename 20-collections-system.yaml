@@ -375,8 +375,8 @@ data:
       provider_id: inspect
       weight: 1.0
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -388,8 +388,8 @@ data:
       provider_id: inspect
       weight: 1.0
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -401,8 +401,8 @@ data:
       provider_id: inspect
       weight: 2.0
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -414,8 +414,8 @@ data:
       provider_id: inspect
       weight: 1.0
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -427,8 +427,8 @@ data:
       provider_id: inspect
       weight: 1.5
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -440,8 +440,8 @@ data:
       provider_id: inspect
       weight: 1.5
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -453,8 +453,8 @@ data:
       provider_id: inspect
       weight: 2.0
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:
@@ -466,8 +466,8 @@ data:
       provider_id: inspect
       weight: 1.0
       parameters:
-        auditor_model: qwen3-8b-fp8
-        judge_model: qwen3-8b-fp8
+        auditor_model: qwen38-27b
+        judge_model: qwen38-27b
         max_samples: 3
         max_turns: 5
       primary_score:

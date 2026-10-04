@@ -58,11 +58,11 @@ Navigate to **AI hub → Models → Catalog**:
 
 ## Practical example: Qwen3-8B-FP8-dynamic on L4
 
-This is the model currently running in the cluster (`my-first-model/qwen3-8b-fp8`).
+This is the model currently running in the cluster (`my-first-model/qwen38-27b`).
 
 | Property | Value |
 |---|---|
-| OCI URI | `oci://registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5` |
+| OCI URI | `oci://registry.redhat.io/rhelai1/modelcar-qwen38-27b-dynamic:1.5` |
 | Image size | **9.5 GB** (pulled in ~1m38s) |
 | Weight footprint | **8.8 GiB** loaded into GPU |
 | GPU VRAM (L4 23GB) | ~10 GB weights + 13 GB KV cache at max-model-len=32768 |
@@ -97,7 +97,7 @@ Fields are auto-imported from the catalog:
 | Field | Value (Qwen3-8B example) |
 |---|---|
 | Model location | URI |
-| URI | `oci://registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5` |
+| URI | `oci://registry.redhat.io/rhelai1/modelcar-qwen38-27b-dynamic:1.5` |
 | Model type | Generative AI model (Example, LLM) |
 
 Click **Next**.
@@ -106,7 +106,7 @@ Click **Next**.
 
 | Field | L4 GPU recommended value |
 |---|---|
-| Model deployment name | `qwen3-8b-fp8` (auto-filled) |
+| Model deployment name | `qwen38-27b` (auto-filled) |
 | Hardware profile | **gpu-profile** (1 GPU, 8–24 GiB RAM) |
 | Deployment resource | Auto-select OR vLLM ServingRuntime |
 | Custom runtime arguments | `--max-model-len=32768 --gpu-memory-utilization=0.92` |
@@ -143,7 +143,7 @@ oc apply -f - <<EOF
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
-  name: qwen3-8b-fp8
+  name: qwen38-27b
   namespace: my-first-model
   labels:
     opendatahub.io/dashboard: "true"
@@ -172,7 +172,7 @@ oc apply -f - <<EOF
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: qwen3-8b-fp8
+  name: qwen38-27b
   namespace: my-first-model
   labels:
     opendatahub.io/dashboard: "true"
@@ -196,8 +196,8 @@ spec:
       - --tool-call-parser=hermes
       modelFormat:
         name: vLLM
-      runtime: qwen3-8b-fp8
-      storageUri: oci://registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5
+      runtime: qwen38-27b
+      storageUri: oci://registry.redhat.io/rhelai1/modelcar-qwen38-27b-dynamic:1.5
       resources:
         requests: {cpu: "2", memory: 8Gi, "nvidia.com/gpu": "1"}
         limits:   {cpu: "8", memory: 24Gi, "nvidia.com/gpu": "1"}
@@ -213,11 +213,11 @@ EOF
 oc get pods -n my-first-model -w
 
 # Check InferenceService ready
-oc get inferenceservice qwen3-8b-fp8 -n my-first-model
+oc get inferenceservice qwen38-27b -n my-first-model
 
 # Watch vLLM startup logs
 oc logs -n my-first-model \
-  -l serving.kserve.io/inferenceservice=qwen3-8b-fp8 \
+  -l serving.kserve.io/inferenceservice=qwen38-27b \
   -c kserve-container -f
 ```
 
@@ -232,7 +232,7 @@ oc logs -n my-first-model \
 ## Test the inference endpoint
 
 ```bash
-INFER_URL=$(oc get inferenceservice qwen3-8b-fp8 -n my-first-model \
+INFER_URL=$(oc get inferenceservice qwen38-27b -n my-first-model \
   -o jsonpath='{.status.address.url}')
 
 # List models (no auth on this deployment)
@@ -242,7 +242,7 @@ curl -s "${INFER_URL}/v1/models" | python3 -m json.tool
 curl -s -X POST "${INFER_URL}/v1/chat/completions" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "qwen3-8b-fp8",
+    "model": "qwen38-27b",
     "messages": [{"role": "user", "content": "What is Red Hat OpenShift AI?"}],
     "max_tokens": 256
   }' | python3 -m json.tool
@@ -255,7 +255,7 @@ curl -s -X POST "${INFER_URL}/v1/chat/completions" \
 ```bash
 EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
 EVALHUB_TOKEN=$(oc create token evalhub-user-sa -n project1 --duration=1h)
-INFER_URL=$(oc get inferenceservice qwen3-8b-fp8 -n my-first-model \
+INFER_URL=$(oc get inferenceservice qwen38-27b -n my-first-model \
   -o jsonpath='{.status.address.url}')
 
 curl -sk -X POST \
@@ -267,7 +267,7 @@ curl -sk -X POST \
     \"name\": \"qwen3-lmeval-arc\",
     \"model\": {
       \"url\": \"${INFER_URL}/v1\",
-      \"name\": \"qwen3-8b-fp8\"
+      \"name\": \"qwen38-27b\"
     },
     \"benchmarks\": [{
       \"id\": \"arc_easy\",

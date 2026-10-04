@@ -21,8 +21,8 @@ EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
 NAMESPACE=project1
 
 # All roles on Qwen3 — single-endpoint mode, works with inspect-ai 0.3.246
-MODEL_URL=http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080
-MODEL_NAME=qwen3-8b-fp8
+MODEL_URL=http://qwen38-27b-predictor.project1.svc.cluster.local:8080
+MODEL_NAME=qwen38-27b
 
 # Audit parameters
 MAX_SAMPLES=2    # Seeds (scenarios) — increase to 10+ for production audits

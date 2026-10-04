@@ -2,7 +2,7 @@
 
 **Audience**: Platform engineers and MLOps practitioners running AI workloads in production  
 **Duration**: ~60 min (30 min presenter demo + 30 min hands-on)  
-**Cluster**: RHOAI 3.5 EA2+ with EvalHub, MaaS `gpt-oss-120b`, Qwen3-235B auditor/judge, MLflow
+**Cluster**: RHOAI 3.5 EA2+ with EvalHub, MaaS `qwen38-27b`, Qwen3-235B auditor/judge, MLflow
 **Platform**: RHOAI (evals, guardrails, and red-teaming are RHOAI-only — not RHAII)
 
 ---
@@ -57,7 +57,7 @@ Complete the main EvalHub setup first (Steps 1–7 in the root README):
 uv run evalhub health
 
 # Verify MaaS external models are available
-oc get externalmodel -n external-models gpt-oss-120b qwen3-235b
+oc get externalmodel -n external-models qwen38-27b qwen38-27b
 
 # Verify MLflow is accessible
 oc get route mlflow -n redhat-ods-applications
@@ -152,8 +152,8 @@ Create the runner Secret (once per cluster):
 ```bash
 oc create secret generic evalhub-runner-config -n project1 \
   --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
-  --from-literal=model_url="https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1" \
-  --from-literal=model_name="gpt-oss-120b"
+  --from-literal=model_url="https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+  --from-literal=model_name="qwen38-27b"
 ```
 
 Deploy the CronJob:
@@ -309,7 +309,7 @@ result-commit fix.
 uv run evalhub health
 
 # 2. Qwen3 judge model is ready
-oc get inferenceservice qwen3-8b-fp8 -n project1
+oc get inferenceservice qwen38-27b -n project1
 # READY=True
 
 # 3. MLflow is accessible
