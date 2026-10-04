@@ -1,0 +1,30 @@
+# promptfoo red-team smoke test — promptfoo-redteam
+#
+# Two deterministic plugins (sql-injection, shell-injection) with 3 tests per
+# plugin against the TMM MaaS model under test. generation_provider is pointed
+# at the model under test so generation AND grading stay inside EvalHub's
+# credential control (promptfoo's hosted default requires OPENAI_API_KEY and
+# external egress). PROMPTFOO_DISABLE_REDTEAM_REMOTE_GENERATION=1 is always
+# set by the adapter — no promptfoo cloud account is needed.
+#
+# Usage:
+#   evalhub eval run --config evals/promptfoo-redteam-smoke.yaml --wait
+
+name: qwen38-promptfoo-redteam-smoke
+experiment:
+  name: evalhub-promptfoo-evals
+model:
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
+  auth:
+    secret_ref: maas-model-token
+benchmarks:
+  - id: promptfoo-redteam
+    provider_id: 36dc80f8-dccc-4e65-9b14-d877e637b6f7
+    parameters:
+      purpose: "A general purpose AI assistant"
+      plugins:
+        - sql-injection
+        - shell-injection
+      num_tests_per_plugin: 3
+      generation_provider: openai:qwen38-27b

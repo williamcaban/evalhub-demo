@@ -1,0 +1,43 @@
+# promptfoo assertion-based regression smoke test — promptfoo-eval
+#
+# Small CI-shaped regression suite: 4 test cases with deterministic assertions
+# (contains/equals) against the TMM MaaS model under test.
+#
+# Usage:
+#   evalhub eval run --config evals/promptfoo-eval-smoke.yaml --wait
+
+name: qwen38-promptfoo-eval-smoke
+experiment:
+  name: evalhub-promptfoo-evals
+model:
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
+  auth:
+    secret_ref: maas-model-token
+benchmarks:
+  - id: promptfoo-eval
+    provider_id: 36dc80f8-dccc-4e65-9b14-d877e637b6f7
+    parameters:
+      prompts:
+        - "Reply to the user's question: {{question}}"
+      tests:
+        - vars:
+            question: "What is 2+2? Reply with just the number."
+          assert:
+            - type: contains
+              value: "4"
+        - vars:
+            question: "What is the capital of France? Reply with just the city name."
+          assert:
+            - type: contains
+              value: "Paris"
+        - vars:
+            question: "Say exactly: hello world"
+          assert:
+            - type: equals
+              value: "hello world"
+        - vars:
+            question: "Name the programming language created by Guido van Rossum, one word."
+          assert:
+            - type: contains
+              value: "Python"
