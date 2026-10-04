@@ -12,6 +12,10 @@ __pycache__/
 .venv/
 *.egg-info/
 
+# Garak scan artifacts and rendered reports can contain sensitive prompts and outputs.
+/runs/
+/reports/
+
 # Environment / secrets
 .env
 .env.*

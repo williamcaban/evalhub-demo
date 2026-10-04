@@ -1,0 +1,42 @@
+{
+  "title": "AI Red Teaming Report",
+  "subtitle": "Garak vulnerability scan and defense evaluation",
+  "benchmark": "OWASP LLM Top 10",
+  "platform": "Replace with the model-serving and deployment details",
+  "taxonomy": "owasp",
+  "baseline": "Baseline",
+  "architecture": "Describe the request path and where each guardrail is applied.",
+  "category_labels": {
+    "llm01": "LLM01 — Prompt Injection",
+    "llm02": "LLM02 — Sensitive Information Disclosure",
+    "llm03": "LLM03 — Supply Chain",
+    "llm04": "LLM04 — Data and Model Poisoning",
+    "llm05": "LLM05 — Improper Output Handling",
+    "llm06": "LLM06 — Excessive Agency",
+    "llm07": "LLM07 — System Prompt Leakage",
+    "llm08": "LLM08 — Vector and Embedding Weaknesses",
+    "llm09": "LLM09 — Misinformation",
+    "llm10": "LLM10 — Unbounded Consumption"
+  },
+  "scans": {
+    "Baseline": {
+      "description": "Describe the model endpoint and configuration.",
+      "deployment": "Replace with the baseline EvalHub job ID.",
+      "layers": ["Garak probes", "Model endpoint"]
+    },
+    "Guardrailed": {
+      "description": "Describe the model, guardrails, and configuration.",
+      "deployment": "Replace with the defended EvalHub job ID.",
+      "layers": ["Garak probes", "Guardrails and classifier", "Model endpoint"]
+    }
+  },
+  "methodology": [
+    "Record Garak version, probe selection, detectors, generation count, and run conditions.",
+    "ASR is calculated as (total_evaluated - passed) / total_evaluated.",
+    "Run-wide rates are weighted descriptive summaries and are not normalized across probes."
+  ],
+  "known_issues": [],
+  "defense_analysis": [],
+  "recommendations": [],
+  "max_examples": 6
+}

@@ -20,6 +20,7 @@ Console. Tested on a single NVIDIA L4 GPU with Qwen3-8B-FP8 as the judge model.
 | Evaluation collections | `20–21-collections-*.yaml` | 7 custom collections with research-calibrated thresholds |
 | Individual eval configs | `evals/` | Per-benchmark YAML configs for all supported providers |
 | Day 2 — continuous eval | `21-continuous-eval-cronjob.yaml` | Nightly K8s CronJob with threshold gate |
+| Garak reports | `scripts/garak_report_generator.py`, `notebooks/garak_red_team_report.ipynb` | Render HTML reports from Garak JSONL artifacts; supports baseline/guardrailed comparisons |
 | Day 2 — drift monitoring | `22-drift-monitor.sh` | Baseline record + behavioral drift comparison |
 | Day 2 — Pushgateway | `24-pushgateway.yaml` | Per-benchmark metrics for Prometheus alerting |
 | Alerting | `23-alerting.yaml`, `23-alerting-cluster.yaml` | PrometheusRules for user-workload and cluster Prometheus |
@@ -82,6 +83,7 @@ uv run evalhub eval run --config evals/arc-easy.yaml --wait
 |---|---|
 | [`docs/setup.md`](docs/setup.md) | Full step-by-step setup: prerequisites, DSC patches, providers, MLflow, EvalHub, model serving, running evals and collections, known issues, troubleshooting, cleanup |
 | [`docs/workshop-day2-continuous-eval.md`](docs/workshop-day2-continuous-eval.md) | Day 2 operations workshop: continuous evaluation via CronJob, drift detection with thresholds — 60-min demo + hands-on guide |
+| [`docs/garak-reporting.md`](docs/garak-reporting.md) | Retrieve Garak artifacts from EvalHub, render a report in a pipeline, and review results in the notebook |
 | [`docs/monitoring-setup.md`](docs/monitoring-setup.md) | Prometheus alerting setup (user-workload + cluster rules), Pushgateway, Perses dashboard installation via COO |
 
 ---
