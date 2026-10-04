@@ -1,0 +1,65 @@
+# promptfoo provider for project1 — OCP BuildConfig (BYOP via cluster build)
+#
+# Why this path: the upstream image quay.io/evalhub/community-promptfoo does
+# NOT exist (the repo 401s for anonymous pulls; the adapter is missing from
+# eval-hub-contrib's build-all-images.yml publish matrix), so the image is
+# built on the cluster instead. Sources: eval-hub-contrib
+# adapters/promptfoo/{main.py,requirements.txt} + a Containerfile.
+#
+# Registered tenant-scoped via the EvalHub BYOP API (UUID id, changes on
+# re-registration — see the current UUID in the provider spec below and
+# update collections/evals that reference it).
+#
+# Usage:
+#   oc --context project1 apply -f 27-promptfoo-buildconfig.yaml
+#   cd <build-context> && oc --context project1 start-build community-promptfoo #       -n project1 --from-dir=. --follow
+#   oc --context project1 get is community-promptfoo #       -o jsonpath='{.status.tags[0].items[0].digest}'
+#   # then register with evalhub providers create (image = internal registry + full digest)
+#
+# Build notes (verified 2026-10-04):
+#   - ImageStream must exist before the first build (InvalidOutputReference otherwise)
+#   - Build resources go in spec.resources, NOT under strategy.dockerStrategy
+#     (silently pruned; 1Gi LimitRange default OOM-kills the npm install, exit 137)
+#   - Build-context files must be 0644 (a 0600 main.py kills the adapter
+#     container at startup: "can't open file '/app/main.py': Permission denied")
+
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: community-promptfoo
+  labels:
+    app.kubernetes.io/managed-by: hermes
+spec:
+  lookupPolicy:
+    local: false
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: community-promptfoo
+  labels:
+    app.kubernetes.io/managed-by: hermes
+spec:
+  source:
+    type: Binary
+    binary:
+      asFile: ""
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: Dockerfile
+  # Build pod resources at spec level (NOT under strategy — unknown fields
+  # are silently pruned). 6Gi limit so the npm install of promptfoo's dep
+  # tree is not OOM-killed (exit 137 with the 1Gi LimitRange default).
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      memory: 6Gi
+  output:
+    to:
+      kind: ImageStreamTag
+      name: community-promptfoo:latest
+  triggers:
+    - type: Config
