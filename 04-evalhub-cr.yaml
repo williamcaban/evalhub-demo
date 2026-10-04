@@ -1,6 +1,6 @@
 # EvalHub CR — RHOAI 3.5.1 (trustyai.opendatahub.io/v1)
 #
-# Deployed on the wbos cluster (hermes-sandbox namespace) with models served
+# Deployed on the wbos cluster with models served
 # by the TMM cluster MaaS gateway.
 #
 # Schema notes (verified against the wbos cluster with `oc explain`, 2026-10-04):
@@ -19,7 +19,7 @@ apiVersion: trustyai.opendatahub.io/v1
 kind: EvalHub
 metadata:
   name: evalhub
-  namespace: hermes-sandbox
+  namespace: project1
 spec:
   # Database (required in v1 schema). SQLite for the lightweight demo;
   # switch to postgresql + secret for persistent deployments.

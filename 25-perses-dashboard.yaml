@@ -14,7 +14,7 @@ apiVersion: perses.dev/v1alpha2
 kind: PersesDashboard
 metadata:
   name: evalhub-continuous-eval
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     app: evalhub-continuous-eval
     component: monitoring
@@ -57,7 +57,7 @@ spec:
                   kind: PrometheusTimeSeriesQuery
                   spec:
                     query: >
-                      up{job="evalhub-metrics", namespace="hermes-sandbox"}
+                      up{job="evalhub-metrics", namespace="project1"}
 
       "status_last_run":
         kind: Panel
@@ -84,7 +84,7 @@ spec:
                     query: >
                       time() - evalhub_eval_last_run_timestamp{
                         collection="nightly-safety-check",
-                        namespace="hermes-sandbox"
+                        namespace="project1"
                       }
 
       "status_breach_count":
@@ -109,7 +109,7 @@ spec:
                   spec:
                     query: >
                       sum(evalhub_threshold_breached{
-                        namespace="hermes-sandbox",
+                        namespace="project1",
                         collection="nightly-safety-check"
                       }) or vector(0)
 
@@ -138,7 +138,7 @@ spec:
                     query: >
                       evalhub_threshold_breached{
                         benchmark="inspect/petri-alignment-faking",
-                        namespace="hermes-sandbox"
+                        namespace="project1"
                       }
 
       "bench_oversight_subversion":
@@ -164,7 +164,7 @@ spec:
                     query: >
                       evalhub_threshold_breached{
                         benchmark="inspect/petri-oversight-subversion",
-                        namespace="hermes-sandbox"
+                        namespace="project1"
                       }
 
       "bench_jailbreak":
@@ -190,7 +190,7 @@ spec:
                     query: >
                       evalhub_threshold_breached{
                         benchmark="inspect/petri-jailbreak",
-                        namespace="hermes-sandbox"
+                        namespace="project1"
                       }
 
       "bench_harmful_cooperation":
@@ -216,7 +216,7 @@ spec:
                     query: >
                       evalhub_threshold_breached{
                         benchmark="inspect/petri-harmful-cooperation",
-                        namespace="hermes-sandbox"
+                        namespace="project1"
                       }
 
       "bench_garak_dan":
@@ -242,7 +242,7 @@ spec:
                     query: >
                       evalhub_threshold_breached{
                         benchmark="quick",
-                        namespace="hermes-sandbox"
+                        namespace="project1"
                       }
 
       # ── Row 3: Benchmark Score Trends ───────────────────────────────────
@@ -270,7 +270,7 @@ spec:
                   spec:
                     query: >
                       evalhub_benchmark_score{
-                        namespace="hermes-sandbox",
+                        namespace="project1",
                         collection="nightly-safety-check"
                       }
                     seriesNameFormat: "{{benchmark}} ({{metric}})"
@@ -299,7 +299,7 @@ spec:
                       sum by (endpoint, status) (
                         rate(http_request_duration_seconds_count{
                           job="evalhub-metrics",
-                          namespace="hermes-sandbox"
+                          namespace="project1"
                         }[$__rate_interval])
                       )
                     seriesNameFormat: "{{endpoint}} {{status}}"
@@ -326,7 +326,7 @@ spec:
                       sum by (endpoint) (
                         rate(http_request_duration_seconds_count{
                           job="evalhub-metrics",
-                          namespace="hermes-sandbox",
+                          namespace="project1",
                           status=~"5.."
                         }[$__rate_interval])
                       )

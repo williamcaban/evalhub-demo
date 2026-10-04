@@ -3,7 +3,7 @@
 # The nightly CronJob's check_thresholds.py pushes per-benchmark scores and
 # breach status to this Pushgateway after each eval run. The user-workload
 # Prometheus scrapes it via the ServiceMonitor below, making metrics available
-# for PrometheusRules in hermes-sandbox without cluster-admin.
+# for PrometheusRules in project1 without cluster-admin.
 #
 # Metrics pushed (job="nightly-safety-eval"):
 #   evalhub_benchmark_score{benchmark, metric, collection}   — raw score value
@@ -14,12 +14,12 @@
 #   oc apply -f 24-pushgateway.yaml
 #
 # Verify:
-#   oc get pod -n hermes-sandbox -l app=prometheus-pushgateway
-#   oc exec -n hermes-sandbox deploy/prometheus-pushgateway -- wget -qO- http://localhost:9091/metrics | grep evalhub
+#   oc get pod -n project1 -l app=prometheus-pushgateway
+#   oc exec -n project1 deploy/prometheus-pushgateway -- wget -qO- http://localhost:9091/metrics | grep evalhub
 #
 # Cleanup (to reset stale metrics between demo runs):
-#   PGHOST=$(oc get svc prometheus-pushgateway -n hermes-sandbox -o jsonpath='{.spec.clusterIP}')
-#   oc exec -n hermes-sandbox deploy/prometheus-pushgateway -- \
+#   PGHOST=$(oc get svc prometheus-pushgateway -n project1 -o jsonpath='{.spec.clusterIP}')
+#   oc exec -n project1 deploy/prometheus-pushgateway -- \
 #     wget -qO- --method=DELETE http://localhost:9091/metrics/job/nightly-safety-eval
 
 ---
@@ -27,7 +27,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: prometheus-pushgateway
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     app: prometheus-pushgateway
     component: monitoring
@@ -83,7 +83,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: prometheus-pushgateway
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     app: prometheus-pushgateway
     component: monitoring
@@ -103,7 +103,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
   name: evalhub-pushgateway
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     app: prometheus-pushgateway
     component: monitoring
@@ -115,7 +115,7 @@ spec:
     honorLabels: true   # preserve job/instance labels pushed by the CronJob
   namespaceSelector:
     matchNames:
-    - hermes-sandbox
+    - project1
   selector:
     matchLabels:
       app: prometheus-pushgateway

@@ -1,6 +1,6 @@
 # System-level collection ConfigMaps
 # Registers all custom collections via operator ConfigMap for stable string IDs.
-# Apply as cluster-admin — operator copies to hermes-sandbox automatically.
+# Apply as cluster-admin — operator copies to project1 automatically.
 #
 # Usage:
 #   oc apply -f 20-collections-system.yaml   # cluster-admin

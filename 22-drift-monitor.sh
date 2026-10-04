@@ -29,7 +29,7 @@
 #
 # Environment variables (with defaults):
 #   EVALHUB_URL        EvalHub route (auto-detected via oc if not set)
-#   EVALHUB_TENANT     Namespace (default: hermes-sandbox)
+#   EVALHUB_TENANT     Namespace (default: project1)
 #   MODEL_URL          vLLM inference endpoint
 #   MODEL_NAME         Model name matching ISVC name (G7)
 #   DRIFT_DELTA        Max allowed score degradation from baseline (default: 0.05)
@@ -38,7 +38,7 @@
 
 set -euo pipefail
 
-EVALHUB_TENANT="${EVALHUB_TENANT:-hermes-sandbox}"
+EVALHUB_TENANT="${EVALHUB_TENANT:-project1}"
 MODEL_URL="${MODEL_URL:-https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1}"
 MODEL_NAME="${MODEL_NAME:-qwen38-27b}"
 COLLECTION="${COLLECTION:-combined-safety-alignment}"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# deploy.sh — EvalHub tenant deployment for hermes-sandbox on RHOAI 3.5
+# deploy.sh — EvalHub tenant deployment for project1 on RHOAI 3.5
 # Follows: https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html-single/working_with_mlflow/index
 #          https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html-single/evaluating_ai_systems/index
 #
@@ -11,7 +11,7 @@ SKIP_MLFLOW=false
 [[ "${1:-}" == "--skip-mlflow" ]] && SKIP_MLFLOW=true
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-NAMESPACE="hermes-sandbox"
+NAMESPACE="project1"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 die() { echo "ERROR: $*" >&2; exit 1; }

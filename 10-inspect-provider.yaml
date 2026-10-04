@@ -9,7 +9,7 @@
 # How it works:
 #   1. Apply this file as cluster-admin to create the ConfigMap in redhat-ods-applications.
 #   2. Apply 04-evalhub-cr.yaml (which includes "inspect" in spec.providers).
-#   3. The TrustyAI operator copies the ConfigMap into hermes-sandbox and the EvalHub
+#   3. The TrustyAI operator copies the ConfigMap into project1 and the EvalHub
 #      server registers it as provider ID "inspect".
 #
 # After this the provider is usable in collections and eval job specs as:

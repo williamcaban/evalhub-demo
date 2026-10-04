@@ -9,15 +9,15 @@
 # Authentication: no static secret or ServiceAccount needed. The Perses instance
 # uses kubernetesAuth (enabled by COO) to forward the user's Kubernetes session
 # token when proxying requests to the Thanos querier at port 9092. The user
-# viewing the dashboard must have 'view' permission in hermes-sandbox.
+# viewing the dashboard must have 'view' permission in project1.
 #
 # Usage:
-#   ./26-perses-viewer-setup.sh [--namespace hermes-sandbox]
+#   ./26-perses-viewer-setup.sh [--namespace project1]
 
 set -euo pipefail
 
-NAMESPACE="hermes-sandbox"
-[[ "${1:-}" == "--namespace" ]] && NAMESPACE="${2:-hermes-sandbox}"
+NAMESPACE="project1"
+[[ "${1:-}" == "--namespace" ]] && NAMESPACE="${2:-project1}"
 
 log() { echo "[$(date -u +%H:%M:%S)] $*"; }
 

@@ -87,7 +87,7 @@ Server ready
 1. **AI hub → Models → Catalog**
 2. Find the model (e.g., **Qwen3-8B-FP8-dynamic** under "Other models")
 3. Click the model name → **Deploy model**
-4. **Project**: select `hermes-sandbox` (or create a new data science project)
+4. **Project**: select `project1` (or create a new data science project)
 5. Click **Next**
 
 ### Step 2 — Model details *(read-only)*
@@ -253,14 +253,14 @@ curl -s -X POST "${INFER_URL}/v1/chat/completions" \
 ## Use as EvalHub target
 
 ```bash
-EVALHUB_HOST=$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')
-EVALHUB_TOKEN=$(oc create token evalhub-user-sa -n hermes-sandbox --duration=1h)
+EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
+EVALHUB_TOKEN=$(oc create token evalhub-user-sa -n project1 --duration=1h)
 INFER_URL=$(oc get inferenceservice qwen38-27b -n my-first-model \
   -o jsonpath='{.status.address.url}')
 
 curl -sk -X POST \
   -H "Authorization: Bearer ${EVALHUB_TOKEN}" \
-  -H "X-Tenant: hermes-sandbox" \
+  -H "X-Tenant: project1" \
   -H "Content-Type: application/json" \
   "https://${EVALHUB_HOST}/api/v1/evaluations/jobs" \
   -d "{

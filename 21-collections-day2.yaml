@@ -1,6 +1,6 @@
 # Day 2 Operations Collections
 # Registers collections used for continuous evaluation and drift monitoring.
-# Apply as cluster-admin — operator copies to hermes-sandbox automatically.
+# Apply as cluster-admin — operator copies to project1 automatically.
 #
 # After applying, add collection IDs to spec.collections in 04-evalhub-cr.yaml
 # and re-apply it. Then verify stable string IDs are present:

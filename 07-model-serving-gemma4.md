@@ -1,7 +1,7 @@
 # Model Serving — RedHatAI/gemma-4-26B-A4B-it-NVFP4
 
 Deploy and authenticate the `RedHatAI/gemma-4-26B-A4B-it-NVFP4` model using RHOAI 3.5
-Distributed Inference (llm-d) in `hermes-sandbox`, then use it as an EvalHub evaluation target.
+Distributed Inference (llm-d) in `project1`, then use it as an EvalHub evaluation target.
 
 **Documentation references**  
 - Distributed inference auth: https://docs.redhat.com/en/documentation/red_hat_openshift_ai_self-managed/3.5/html/deploy_models_using_distributed_inference_with_llm-d/enabling-authentication-and-authorization-for-llm-inference-service_distributed-inference  
@@ -32,7 +32,7 @@ Vision tower, embeddings, output head, and MoE router are kept in their original
 | Requirement | Notes |
 |---|---|
 | RHOAI 3.5 | KServe `Managed`, llm-d / `LLMInferenceService` CRD installed |
-| GPU nodes | ≥1 A100 (40 GB) or H100 (80 GB) in `hermes-sandbox` namespace |
+| GPU nodes | ≥1 A100 (40 GB) or H100 (80 GB) in `project1` namespace |
 | Red Hat Connectivity Link | Required for `security.opendatahub.io/enable-auth` JWT auth |
 | HuggingFace account | Gemma 4 requires license acceptance at hf.co/google/gemma-4-26B-A4B-it |
 
@@ -59,7 +59,7 @@ The model requires a HuggingFace account with the Gemma 4 license accepted.
 # Generate a read token at: https://huggingface.co/settings/tokens
 
 oc create secret generic hf-token \
-  -n hermes-sandbox \
+  -n project1 \
   --from-literal=HF_TOKEN=<your-hf-token>
 ```
 
@@ -75,13 +75,13 @@ See [`07-llminferenceservice-gemma4.yaml`](07-llminferenceservice-gemma4.yaml) f
 
 **Watch rollout:**
 ```bash
-oc get llminferenceservice gemma4-nvfp4 -n hermes-sandbox -w
+oc get llminferenceservice gemma4-nvfp4 -n project1 -w
 # Wait for Ready=True
 ```
 
 **Get the inference endpoint:**
 ```bash
-oc get llminferenceservice gemma4-nvfp4 -n hermes-sandbox \
+oc get llminferenceservice gemma4-nvfp4 -n project1 \
   -o jsonpath='{.status.url}'
 ```
 
@@ -95,7 +95,7 @@ on the `LLMInferenceService` resource.
 
 ```bash
 # Create inference user ServiceAccount
-oc create serviceaccount llm-user -n hermes-sandbox
+oc create serviceaccount llm-user -n project1
 
 # Role: get this specific LLMInferenceService
 oc apply -f - <<EOF
@@ -103,7 +103,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: llm-inference-viewer
-  namespace: hermes-sandbox
+  namespace: project1
 rules:
 - apiGroups: ["serving.kserve.io"]
   resources: ["llminferenceservices"]
@@ -114,8 +114,8 @@ EOF
 # Bind the Role to the ServiceAccount
 oc create rolebinding llm-user-binding \
   --role=llm-inference-viewer \
-  --serviceaccount=hermes-sandbox:llm-user \
-  -n hermes-sandbox
+  --serviceaccount=project1:llm-user \
+  -n project1
 ```
 
 ---
@@ -123,9 +123,9 @@ oc create rolebinding llm-user-binding \
 ## Step 4 — Verify authentication
 
 ```bash
-INFER_URL=$(oc get llminferenceservice gemma4-nvfp4 -n hermes-sandbox \
+INFER_URL=$(oc get llminferenceservice gemma4-nvfp4 -n project1 \
   -o jsonpath='{.status.url}')
-TOKEN=$(oc create token llm-user -n hermes-sandbox --duration=1h)
+TOKEN=$(oc create token llm-user -n project1 --duration=1h)
 
 # Should return 401 (auth enforced)
 curl -sk "${INFER_URL}/v1/models" | head -5
@@ -150,32 +150,32 @@ curl -sk -X POST "${INFER_URL}/v1/chat/completions" \
 ## Step 5 — Use as EvalHub evaluation target
 
 The model endpoint can be used directly in EvalHub job submissions as the `model.url`.
-The `evalhub-hermes-sandbox-job` ServiceAccount (created by the EvalHub operator) needs
+The `evalhub-project1-job` ServiceAccount (created by the EvalHub operator) needs
 `get` access to the `LLMInferenceService`:
 
 ```bash
 # Grant eval job pods access to the inference service
 oc create rolebinding evalhub-llm-binding \
   --role=llm-inference-viewer \
-  --serviceaccount=hermes-sandbox:evalhub-hermes-sandbox-job \
-  -n hermes-sandbox
+  --serviceaccount=project1:evalhub-project1-job \
+  -n project1
 ```
 
 **Submit a Petri sycophancy audit via EvalHub using gemma4 as the target:**
 
 ```bash
-EVALHUB_HOST=$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')
-EVALHUB_TOKEN=$(oc create token evalhub-user-sa -n hermes-sandbox --duration=1h)
-INFER_URL=$(oc get llminferenceservice gemma4-nvfp4 -n hermes-sandbox -o jsonpath='{.status.url}')
+EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
+EVALHUB_TOKEN=$(oc create token evalhub-user-sa -n project1 --duration=1h)
+INFER_URL=$(oc get llminferenceservice gemma4-nvfp4 -n project1 -o jsonpath='{.status.url}')
 
 # Store an Anthropic API key for the auditor/judge models (Inspect AI Petri)
 oc create secret generic eval-api-keys \
-  -n hermes-sandbox \
+  -n project1 \
   --from-literal=ANTHROPIC_API_KEY=<your-anthropic-key>
 
 curl -sk -X POST \
   -H "Authorization: Bearer ${EVALHUB_TOKEN}" \
-  -H "X-Tenant: hermes-sandbox" \
+  -H "X-Tenant: project1" \
   -H "Content-Type: application/json" \
   "https://${EVALHUB_HOST}/api/v1/evaluations/jobs" \
   -d "{
@@ -183,7 +183,7 @@ curl -sk -X POST \
     \"model\": {
       \"url\": \"${INFER_URL}/v1\",
       \"name\": \"RedHatAI/gemma-4-26B-A4B-it-NVFP4\",
-      \"auth\": {\"secret_ref\": \"evalhub-hermes-sandbox-job\"}
+      \"auth\": {\"secret_ref\": \"evalhub-project1-job\"}
     },
     \"benchmarks\": [{
       \"id\": \"inspect/petri-sycophancy\",

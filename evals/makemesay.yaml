@@ -6,7 +6,7 @@
 # ⚠️ Cluster blocker (2026-10-04): the source provider ConfigMap
 # trustyai-service-operator-evalhub-provider-inspect in redhat-ods-applications
 # still pins community-inspect:v0.5.0. The TrustyAI EvalHub operator reconciles
-# the tenant copy (evalhub-provider-inspect in hermes-sandbox) from that source
+# the tenant copy (evalhub-provider-inspect in the tenant namespace) from that source
 # every ~5min, so tenant-side patches to :latest are reverted within seconds
 # (verified: patch lands, resourceVersion bumps, image tag back to v0.5.0).
 # Fix requires cluster-admin: update the source ConfigMap image tag to :latest,

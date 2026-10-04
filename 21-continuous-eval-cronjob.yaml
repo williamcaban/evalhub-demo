@@ -14,26 +14,26 @@
 #
 # Setup:
 #   # Create the runner config Secret (update values for your cluster/model)
-#   oc create secret generic evalhub-runner-config -n hermes-sandbox \
-#     --from-literal=evalhub_url="https://$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')" \
+#   oc create secret generic evalhub-runner-config -n project1 \
+#     --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
 #     --from-literal=model_url="https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
 #     --from-literal=model_name="qwen38-27b"
 #
 #   oc apply -f 21-continuous-eval-cronjob.yaml
 #
 # Trigger a one-off run to verify:
-#   oc create job --from=cronjob/nightly-safety-eval nightly-safety-eval-manual -n hermes-sandbox
-#   oc logs -n hermes-sandbox -l job-name=nightly-safety-eval-manual -f
+#   oc create job --from=cronjob/nightly-safety-eval nightly-safety-eval-manual -n project1
+#   oc logs -n project1 -l job-name=nightly-safety-eval-manual -f
 #
 # Monitor scheduled runs:
-#   oc get cronjob nightly-safety-eval -n hermes-sandbox
-#   oc get jobs -n hermes-sandbox | grep nightly-safety-eval
+#   oc get cronjob nightly-safety-eval -n project1
+#   oc get jobs -n project1 | grep nightly-safety-eval
 
 apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: nightly-safety-eval
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     app: evalhub-continuous-eval
     component: scheduler
@@ -75,13 +75,13 @@ spec:
                   name: evalhub-runner-config
                   key: model_name
             - name: EVALHUB_TENANT
-              value: "hermes-sandbox"
+              value: "project1"
             - name: PYTHONUNBUFFERED
               value: "1"
             - name: HOME
               value: "/tmp"
             - name: PUSHGATEWAY_URL
-              value: "http://prometheus-pushgateway.hermes-sandbox.svc.cluster.local:9091"
+              value: "http://prometheus-pushgateway.project1.svc.cluster.local:9091"
             command: ["/bin/bash", "-c"]
             args:
               - |
@@ -139,7 +139,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: evalhub-runner-scripts
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     app: evalhub-continuous-eval
 data:
@@ -187,7 +187,7 @@ data:
     print()
 
     # Push benchmark scores and breach status to Pushgateway so
-    # PrometheusRules in hermes-sandbox can alert with per-benchmark detail.
+    # PrometheusRules in project1 can alert with per-benchmark detail.
     pushgateway_url = os.environ.get("PUSHGATEWAY_URL", "")
     if pushgateway_url:
         try:

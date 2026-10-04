@@ -1,4 +1,4 @@
-# Qwen3-8B-FP8 judge model for hermes-sandbox
+# Qwen3-8B-FP8 judge model for project1
 #
 # Deploys the Red Hat AI Catalog ModelCar image via KServe InferenceService.
 # Used as the judge/auditor model for Inspect AI Petri alignment audits.
@@ -8,7 +8,7 @@
 #   ~10 GB weights + 13 GB KV cache at max-model-len=32768
 #
 # Internal URL (after deploy):
-#   http://qwen38-27b-predictor.hermes-sandbox.svc.cluster.local:8080
+#   http://qwen38-27b-predictor.project1.svc.cluster.local:8080
 #
 # Notes:
 #   - security.opendatahub.io/enable-auth: "false" — no token required for internal eval jobs
@@ -21,7 +21,7 @@ apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
   name: qwen38-27b
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
@@ -55,7 +55,7 @@ apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
   name: qwen38-27b
-  namespace: hermes-sandbox
+  namespace: project1
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
