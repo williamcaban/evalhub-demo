@@ -2,7 +2,7 @@
 
 **Audience**: Platform engineers and MLOps practitioners running AI workloads in production  
 **Duration**: ~60 min (30 min presenter demo + 30 min hands-on)  
-**Cluster**: RHOAI 3.5 EA2+ with EvalHub, MaaS `gpt-oss-120b`, Qwen3-235B auditor/judge, MLflow
+**Cluster**: RHOAI 3.5 EA2+ with EvalHub, MaaS `qwen38-27b`, Qwen3-235B auditor/judge, MLflow
 **Platform**: RHOAI (evals, guardrails, and red-teaming are RHOAI-only — not RHAII)
 
 ---
@@ -57,7 +57,7 @@ Complete the main EvalHub setup first (Steps 1–7 in the root README):
 uv run evalhub health
 
 # Verify MaaS external models are available
-oc get externalmodel -n external-models gpt-oss-120b qwen3-235b
+oc get externalmodel -n external-models qwen38-27b qwen38-27b
 
 # Verify MLflow is accessible
 oc get route mlflow -n redhat-ods-applications
@@ -118,7 +118,7 @@ Watch the eval pods spin up:
 
 ```bash
 # In a second terminal
-oc get pods -n project1 -w | grep -v "evalhub\|qwen3"
+oc get pods -n hermes-sandbox -w | grep -v "evalhub\|qwen3"
 ```
 
 **While it runs**, show the collection YAML — walk through a `pass_criteria` block and explain it's a deployment gate, not a metric.
@@ -150,10 +150,10 @@ response contains `mlflow_experiment_url` or `mlflow_run_id`.
 Create the runner Secret (once per cluster):
 
 ```bash
-oc create secret generic evalhub-runner-config -n project1 \
-  --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
-  --from-literal=model_url="https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1" \
-  --from-literal=model_name="gpt-oss-120b"
+oc create secret generic evalhub-runner-config -n hermes-sandbox \
+  --from-literal=evalhub_url="https://$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')" \
+  --from-literal=model_url="https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+  --from-literal=model_name="qwen38-27b"
 ```
 
 Deploy the CronJob:
@@ -161,7 +161,7 @@ Deploy the CronJob:
 ```bash
 oc apply -f 21-continuous-eval-cronjob.yaml
 
-oc get cronjob nightly-safety-eval -n project1
+oc get cronjob nightly-safety-eval -n hermes-sandbox
 # Expected: SCHEDULE=0 2 * * *  SUSPEND=False  ACTIVE=0
 ```
 
@@ -171,10 +171,10 @@ Trigger a manual run to show it working:
 oc create job \
   --from=cronjob/nightly-safety-eval \
   nightly-safety-eval-manual \
-  -n project1
+  -n hermes-sandbox
 
 # Watch the job
-oc logs -n project1 -l job-name=nightly-safety-eval-manual -f
+oc logs -n hermes-sandbox -l job-name=nightly-safety-eval-manual -f
 ```
 
 **Talking point**: *"From this point on, every night at 02:00 UTC, your model gets evaluated across the safety dimensions that matter most. If any benchmark fails its threshold, the job exits non-zero — OpenShift marks it failed, it appears in your alerting. No human intervention required unless something breaks."*
@@ -200,7 +200,7 @@ After a known-good deployment (or at the start of the demo using the run from Pa
 This runs `combined-safety-alignment` (the full weekly suite), waits for completion, then stores the MLflow job ID in a ConfigMap:
 
 ```bash
-oc get configmap evalhub-drift-baseline -n project1 -o yaml
+oc get configmap evalhub-drift-baseline -n hermes-sandbox -o yaml
 # Shows: collection, job_id, recorded_at, model_name
 ```
 
@@ -309,7 +309,7 @@ result-commit fix.
 uv run evalhub health
 
 # 2. Qwen3 judge model is ready
-oc get inferenceservice qwen3-8b-fp8 -n project1
+oc get inferenceservice qwen38-27b -n hermes-sandbox
 # READY=True
 
 # 3. MLflow is accessible
@@ -319,13 +319,13 @@ oc get route mlflow -n redhat-ods-applications
 uv run evalhub collections list | grep nightly-safety-check
 
 # 5. evalhub-runner-config Secret exists
-oc get secret evalhub-runner-config -n project1
+oc get secret evalhub-runner-config -n hermes-sandbox
 
 # 6. CronJob is deployed
-oc get cronjob nightly-safety-eval -n project1
+oc get cronjob nightly-safety-eval -n hermes-sandbox
 
 # 7. A baseline run exists (or record one now)
-oc get configmap evalhub-drift-baseline -n project1 2>/dev/null \
+oc get configmap evalhub-drift-baseline -n hermes-sandbox 2>/dev/null \
   || echo "No baseline yet — run: ./22-drift-monitor.sh --record-baseline"
 ```
 
@@ -335,9 +335,9 @@ oc get configmap evalhub-drift-baseline -n project1 2>/dev/null \
 
 ```bash
 # Remove CronJob and Secret
-oc delete cronjob nightly-safety-eval -n project1
-oc delete secret evalhub-runner-config -n project1
-oc delete configmap evalhub-drift-baseline -n project1 --ignore-not-found
+oc delete cronjob nightly-safety-eval -n hermes-sandbox
+oc delete secret evalhub-runner-config -n hermes-sandbox
+oc delete configmap evalhub-drift-baseline -n hermes-sandbox --ignore-not-found
 
 # Remove Day 2 collections (cluster-admin)
 oc delete -f 21-collections-day2.yaml --ignore-not-found

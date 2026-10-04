@@ -14,7 +14,7 @@
 # Prerequisites:
 #   1. Accept the Gemma 4 license at https://huggingface.co/google/gemma-4-26B-A4B-it
 #   2. Create the hf-token Secret:
-#        oc create secret generic hf-token -n project1 \
+#        oc create secret generic hf-token -n hermes-sandbox \
 #          --from-literal=HF_TOKEN=<your-hf-token>
 #   3. Red Hat Connectivity Link configured (required for JWT auth)
 ---
@@ -22,7 +22,7 @@ apiVersion: serving.kserve.io/v1alpha2
 kind: LLMInferenceService
 metadata:
   name: gemma4-nvfp4
-  namespace: project1
+  namespace: hermes-sandbox
   annotations:
     # Authentication enabled by default when Red Hat Connectivity Link is configured.
     # This annotation makes the intent explicit and re-enables auth if previously disabled.

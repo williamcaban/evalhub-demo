@@ -37,7 +37,7 @@ back into MLflow as artifacts.
 
 ```bash
 oc create secret generic judge-llm-api-key \
-  -n project1 \
+  -n hermes-sandbox \
   --from-literal=api-key=<YOUR_API_KEY> \
   --from-literal=OPENAI_API_KEY=<YOUR_API_KEY>
 ```
@@ -93,9 +93,9 @@ Best for: debugging whether issues are in reasoning vs tool usage.
 ### Environment setup
 
 ```bash
-EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
+EVALHUB_HOST=$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')
 EVALHUB_URL="https://${EVALHUB_HOST}"
-TOKEN=$(oc create token evalhub-user-sa -n project1 --duration=1h)
+TOKEN=$(oc create token evalhub-user-sa -n hermes-sandbox --duration=1h)
 ```
 
 ### Submit — Standard mode
@@ -103,7 +103,7 @@ TOKEN=$(oc create token evalhub-user-sa -n project1 --duration=1h)
 ```bash
 curl -sk -X POST "${EVALHUB_URL}/api/v1/evaluations/jobs" \
   -H "Authorization: Bearer ${TOKEN}" \
-  -H "X-Tenant: project1" \
+  -H "X-Tenant: hermes-sandbox" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "clear-standard-eval",
@@ -119,7 +119,7 @@ curl -sk -X POST "${EVALHUB_URL}/api/v1/evaluations/jobs" \
       "parameters": {
         "mlflow_traces_experiment_name": "research-agent-traces",
         "mlflow_experiment_name": "clear-eval-results",
-        "mlflow_workspace": "project1",
+        "mlflow_workspace": "hermes-sandbox",
         "eval_model_name": "<YOUR_MODEL_NAME>",
         "provider": "openai",
         "inference_backend": "litellm",
@@ -138,7 +138,7 @@ Same as above but with `"separate_tools": true` and a different experiment name:
 ```bash
 curl -sk -X POST "${EVALHUB_URL}/api/v1/evaluations/jobs" \
   -H "Authorization: Bearer ${TOKEN}" \
-  -H "X-Tenant: project1" \
+  -H "X-Tenant: hermes-sandbox" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "clear-sparc-eval",
@@ -154,7 +154,7 @@ curl -sk -X POST "${EVALHUB_URL}/api/v1/evaluations/jobs" \
       "parameters": {
         "mlflow_traces_experiment_name": "research-agent-traces",
         "mlflow_experiment_name": "clear-eval-sparc-results",
-        "mlflow_workspace": "project1",
+        "mlflow_workspace": "hermes-sandbox",
         "eval_model_name": "<YOUR_MODEL_NAME>",
         "provider": "openai",
         "inference_backend": "litellm",
@@ -221,7 +221,7 @@ JOB_ID="eval-a1b2c3d4"
 
 curl -sk "${EVALHUB_URL}/api/v1/evaluations/jobs/${JOB_ID}" \
   -H "Authorization: Bearer ${TOKEN}" \
-  -H "X-Tenant: project1" \
+  -H "X-Tenant: hermes-sandbox" \
   | python3 -c "import json,sys; j=json.load(sys.stdin); print('State:', j['status']['state'])"
 ```
 

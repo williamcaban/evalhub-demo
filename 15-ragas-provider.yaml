@@ -7,7 +7,7 @@
 # How it works:
 #   1. Apply this file as cluster-admin.
 #   2. Apply 04-evalhub-cr.yaml (includes "ragas" in spec.providers).
-#   3. Operator copies ConfigMap to project1; EvalHub registers as id: ragas.
+#   3. Operator copies ConfigMap to hermes-sandbox; EvalHub registers as id: ragas.
 #
 # Usage:
 #   oc apply -f 15-ragas-provider.yaml    # cluster-admin

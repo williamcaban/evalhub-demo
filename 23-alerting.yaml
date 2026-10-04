@@ -2,10 +2,10 @@
 #
 # Contains two PrometheusRule resources targeting different Prometheus instances:
 #
-#   PART A — project1 namespace (user-workload Prometheus)
+#   PART A — hermes-sandbox namespace (user-workload Prometheus)
 #     Requires: user workload monitoring enabled (see docs/monitoring-setup.md)
 #     Alerts:   EvalHub server availability and HTTP error rate
-#     Apply:    oc apply -f 23-alerting.yaml -n project1
+#     Apply:    oc apply -f 23-alerting.yaml -n hermes-sandbox
 #               (or leave namespace in the metadata — already set)
 #
 #   PART B — openshift-monitoring namespace (cluster-level Prometheus)
@@ -23,14 +23,14 @@
 #   oc apply -f 23-alerting-cluster.yaml
 #
 # Verify rules are loaded:
-#   oc get prometheusrule -n project1
+#   oc get prometheusrule -n hermes-sandbox
 #   oc get prometheusrule -n openshift-monitoring | grep evalhub
 #
 # Check firing alerts:
 #   OpenShift Console → Observe → Alerting → filter "evalhub"
 
 ---
-# PART A — User-workload PrometheusRule (project1)
+# PART A — User-workload PrometheusRule (hermes-sandbox)
 # Evaluated by the user-workload Prometheus instance.
 # Uses metrics scraped from the evalhub-metrics ServiceMonitor (port 8081).
 # The operator creates the ServiceMonitor automatically — no manual setup needed.
@@ -38,7 +38,7 @@ apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
 metadata:
   name: evalhub-availability-alerts
-  namespace: project1
+  namespace: hermes-sandbox
   labels:
     app: evalhub-continuous-eval
     # Required label for user-workload Prometheus to pick up this rule
@@ -49,37 +49,37 @@ spec:
     interval: 60s
     rules:
     - alert: EvalHubServerDown
-      expr: up{job="evalhub-metrics", namespace="project1"} == 0
+      expr: up{job="evalhub-metrics", namespace="hermes-sandbox"} == 0
       for: 2m
       labels:
         severity: critical
-        namespace: project1
+        namespace: hermes-sandbox
       annotations:
         summary: "EvalHub server is unreachable"
         description: >
           EvalHub in namespace {{ $labels.namespace }} has been unreachable
           for 2 minutes. Continuous evaluation and drift monitoring are suspended.
-          Check: oc get pod -n project1 -l app.kubernetes.io/name=evalhub
+          Check: oc get pod -n hermes-sandbox -l app.kubernetes.io/name=evalhub
 
     - alert: EvalHubHighAPIErrorRate
       expr: |
         sum by (namespace) (
           rate(http_request_duration_seconds_count{
             job="evalhub-metrics",
-            namespace="project1",
+            namespace="hermes-sandbox",
             status=~"5.."
           }[5m])
         ) > 0.1
       for: 5m
       labels:
         severity: warning
-        namespace: project1
+        namespace: hermes-sandbox
       annotations:
         summary: "EvalHub returning elevated HTTP 5xx errors"
         description: >
           EvalHub has returned more than 0.1 req/s with HTTP 5xx status
           over the last 5 minutes. Eval job submissions may be failing.
-          Check: oc logs -n project1 -l app.kubernetes.io/name=evalhub
+          Check: oc logs -n hermes-sandbox -l app.kubernetes.io/name=evalhub
 
   # Benchmark-level alerts — require Pushgateway (24-pushgateway.yaml).
   # Metrics are pushed by check_thresholds.py after each CronJob run.
@@ -92,11 +92,11 @@ spec:
     # Fires once per breached benchmark — carries the benchmark name,
     # collection, and threshold in labels so the alert is self-describing.
     - alert: EvalHubBenchmarkThresholdBreach
-      expr: evalhub_threshold_breached{namespace="project1"} == 1
+      expr: evalhub_threshold_breached{namespace="hermes-sandbox"} == 1
       for: 0m
       labels:
         severity: warning
-        namespace: project1
+        namespace: hermes-sandbox
         team: ai-platform
       annotations:
         summary: >-
@@ -105,23 +105,23 @@ spec:
           Collection {{ $labels.collection }}: benchmark {{ $labels.benchmark }}
           breached its pass_criteria threshold of {{ $labels.threshold }}.
           Current score: query evalhub_benchmark_score{benchmark="{{ $labels.benchmark }}"}.
-          Full table: oc logs -n project1 -l app=evalhub-continuous-eval --tail=30
+          Full table: oc logs -n hermes-sandbox -l app=evalhub-continuous-eval --tail=30
 
     # Fires when no eval has run in 36 hours — uses the timestamp pushed
     # by check_thresholds.py, keeping the missed-eval alert in user-workload
     # Prometheus so it fires alongside the benchmark-level alerts.
     - alert: EvalHubNightlyEvalMissed
       expr: >
-        (time() - evalhub_eval_last_run_timestamp{namespace="project1"})
+        (time() - evalhub_eval_last_run_timestamp{namespace="hermes-sandbox"})
         > 129600
       for: 0m
       labels:
         severity: warning
-        namespace: project1
+        namespace: hermes-sandbox
         team: ai-platform
       annotations:
         summary: "EvalHub nightly eval has not run in 36 hours"
         description: >
           Collection {{ $labels.collection }} last ran
           {{ $value | humanizeDuration }} ago.
-          Check: oc get cronjob nightly-safety-eval -n project1
+          Check: oc get cronjob nightly-safety-eval -n hermes-sandbox

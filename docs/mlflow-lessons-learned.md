@@ -22,7 +22,7 @@ deployment configuration, not through extra fields in each job:
 - `MLFLOW_CA_CERT_PATH` points to the service CA for TLS verification.
 - `MLFLOW_TOKEN_PATH` points to the projected ServiceAccount token.
 - `MLFLOW_WORKSPACE` identifies the tenant's MLflow workspace; in this demo it
-  is `project1`.
+  is `hermes-sandbox`.
 - A tracked job contains `experiment: { name: ... }`.
 - EvalHub and MLflow use namespace-based tenancy. The tenant namespace must be
   registered with `evalhub.trustyai.opendatahub.io/tenant=` and the caller must
@@ -35,7 +35,7 @@ not the only source of truth.
 ## What we observed in the workshop cluster
 
 The EvalHub deployment had the documented tracking URI, CA path, token path,
-and workspace. Direct MLflow requests with the `X-MLFLOW-WORKSPACE: project1`
+and workspace. Direct MLflow requests with the `X-MLFLOW-WORKSPACE: hermes-sandbox`
 header worked, proving that the MLflow server and workspace endpoint were
 reachable. However, a tracked EvalHub submission failed with:
 

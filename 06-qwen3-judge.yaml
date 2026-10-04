@@ -1,14 +1,14 @@
-# Qwen3-8B-FP8 judge model for project1
+# Qwen3-8B-FP8 judge model for hermes-sandbox
 #
 # Deploys the Red Hat AI Catalog ModelCar image via KServe InferenceService.
 # Used as the judge/auditor model for Inspect AI Petri alignment audits.
 #
-# OCI image: registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5
+# OCI image: registry.redhat.io/rhelai1/modelcar-qwen38-27b-dynamic:1.5
 # GPU sizing: 1× NVIDIA L4 (23 GB) or A10G (24 GB)
 #   ~10 GB weights + 13 GB KV cache at max-model-len=32768
 #
 # Internal URL (after deploy):
-#   http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080
+#   http://qwen38-27b-predictor.hermes-sandbox.svc.cluster.local:8080
 #
 # Notes:
 #   - security.opendatahub.io/enable-auth: "false" — no token required for internal eval jobs
@@ -20,8 +20,8 @@
 apiVersion: serving.kserve.io/v1alpha1
 kind: ServingRuntime
 metadata:
-  name: qwen3-8b-fp8
-  namespace: project1
+  name: qwen38-27b
+  namespace: hermes-sandbox
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
@@ -54,8 +54,8 @@ spec:
 apiVersion: serving.kserve.io/v1beta1
 kind: InferenceService
 metadata:
-  name: qwen3-8b-fp8
-  namespace: project1
+  name: qwen38-27b
+  namespace: hermes-sandbox
   labels:
     opendatahub.io/dashboard: "true"
   annotations:
@@ -73,8 +73,8 @@ spec:
     model:
       modelFormat:
         name: vLLM
-      runtime: qwen3-8b-fp8
-      storageUri: oci://registry.redhat.io/rhelai1/modelcar-qwen3-8b-fp8-dynamic:1.5
+      runtime: qwen38-27b
+      storageUri: oci://registry.redhat.io/rhelai1/modelcar-qwen38-27b-dynamic:1.5
       args:
       - --dtype=auto
       - --max-model-len=32768

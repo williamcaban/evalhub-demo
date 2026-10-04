@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
 # 11-eval-arc-easy.sh — Submit an ARC Easy benchmark via EvalHub lm-evaluation-harness
 #
-# Evaluates gpt-oss-120b (deployed in project1) on the ARC Easy reasoning benchmark.
+# Evaluates qwen38-27b (deployed in hermes-sandbox) on the ARC Easy reasoning benchmark.
 # lm-evaluation-harness pulls the dataset from HuggingFace (online mode required).
 #
 # Prerequisites:
-#   - EvalHub running in project1 (04-evalhub-cr.yaml applied)
-#   - gpt-oss-120b InferenceService ready in project1 (06-qwen3-judge.yaml applied)
+#   - EvalHub running in hermes-sandbox (04-evalhub-cr.yaml applied)
+#   - qwen38-27b InferenceService ready in hermes-sandbox (06-qwen3-judge.yaml applied)
 #   - permitOnline: allow set in DSC (see README cluster-admin setup)
 #
 # Usage: ./11-eval-arc-easy.sh
 set -euo pipefail
 
 # ── Variables ──────────────────────────────────────────────────────────────────
-EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
-MODEL_URL=http://gpt-oss-120b-predictor.project1.svc.cluster.local:8080
-MODEL_NAME=gpt-oss-120b
-NAMESPACE=project1
+EVALHUB_HOST=$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')
+MODEL_URL=http://qwen38-27b-predictor.hermes-sandbox.svc.cluster.local:8080
+MODEL_NAME=qwen38-27b
+NAMESPACE=hermes-sandbox
 # Qwen/Qwen3-8B is public on HuggingFace — no HF token needed for tokenizer download
 TOKENIZER=Qwen/Qwen3-8B
-# arc_easy benchmark: 2376 samples — runtime ~9 min on a single L4 GPU (gpt-oss-120b)
+# arc_easy benchmark: 2376 samples — runtime ~9 min on a single L4 GPU (qwen38-27b)
 # Note: the lm-evaluation-harness adapter ignores a 'limit' parameter — full dataset always runs
 
 # ── Token ──────────────────────────────────────────────────────────────────────

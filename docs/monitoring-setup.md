@@ -12,7 +12,7 @@ Two Prometheus instances are relevant:
 
 | Instance | Namespace | Scrapes | Rules target |
 |---|---|---|---|
-| User-workload Prometheus | `openshift-user-workload-monitoring` | ServiceMonitors in user namespaces | PrometheusRules in `project1` |
+| User-workload Prometheus | `openshift-user-workload-monitoring` | ServiceMonitors in user namespaces | PrometheusRules in `hermes-sandbox` |
 | Cluster Prometheus | `openshift-monitoring` | System components, kube-state-metrics | PrometheusRules in `openshift-monitoring` |
 
 `kube_job_status_failed` (needed for CronJob failure alerts) is only available in
@@ -70,8 +70,8 @@ The EvalHub operator creates a `ServiceMonitor` and a dedicated metrics `Service
 Confirm both exist:
 
 ```bash
-oc get servicemonitor evalhub-metrics -n project1
-oc get svc evalhub-metrics -n project1
+oc get servicemonitor evalhub-metrics -n hermes-sandbox
+oc get svc evalhub-metrics -n hermes-sandbox
 # Expected: evalhub-metrics  ClusterIP  ...  8081/TCP
 ```
 
@@ -83,7 +83,7 @@ oc port-forward -n openshift-user-workload-monitoring \
   statefulset/prometheus-user-workload 9090:9090 &
 
 # Then open: http://localhost:9090/targets
-# Look for: evalhub-metrics  State=UP  namespace=project1
+# Look for: evalhub-metrics  State=UP  namespace=hermes-sandbox
 ```
 
 Or query directly:
@@ -110,7 +110,7 @@ oc apply -f 23-alerting.yaml
 Verify the rule is loaded:
 
 ```bash
-oc get prometheusrule evalhub-availability-alerts -n project1
+oc get prometheusrule evalhub-availability-alerts -n hermes-sandbox
 ```
 
 Check it is evaluated (may take up to 60s):
@@ -159,14 +159,14 @@ fails the Garak DAN and Petri jailbreak thresholds:
 oc create job \
   --from=cronjob/nightly-safety-eval \
   nightly-safety-eval-alert-test \
-  -n project1
+  -n hermes-sandbox
 
 # Wait for job to fail (~10 min)
-oc get job nightly-safety-eval-alert-test -n project1 -w
+oc get job nightly-safety-eval-alert-test -n hermes-sandbox -w
 # Expected: STATUS=Failed
 
 # Check the threshold breach log
-oc logs -n project1 -l job-name=nightly-safety-eval-alert-test --tail=20
+oc logs -n hermes-sandbox -l job-name=nightly-safety-eval-alert-test --tail=20
 ```
 
 After the Job is marked `Failed`, `kube_job_status_failed > 0` fires. The alert
@@ -175,7 +175,7 @@ appears in the OpenShift Console under **Observe → Alerting** within 1–2 min
 Cleanup:
 
 ```bash
-oc delete job nightly-safety-eval-alert-test -n project1
+oc delete job nightly-safety-eval-alert-test -n hermes-sandbox
 ```
 
 ### Test EvalHubServerDown
@@ -183,16 +183,16 @@ oc delete job nightly-safety-eval-alert-test -n project1
 Scale EvalHub to 0 replicas temporarily:
 
 ```bash
-oc scale deployment/evalhub -n project1 --replicas=0
+oc scale deployment/evalhub -n hermes-sandbox --replicas=0
 # Wait 2 min for EvalHubServerDown to fire (for: 2m)
-oc scale deployment/evalhub -n project1 --replicas=1
+oc scale deployment/evalhub -n hermes-sandbox --replicas=1
 ```
 
 ---
 
 ## Alerts Reference
 
-### User-workload Prometheus (project1)
+### User-workload Prometheus (hermes-sandbox)
 
 | Alert | Condition | Severity | Action |
 |---|---|---|---|
@@ -204,7 +204,7 @@ oc scale deployment/evalhub -n project1 --replicas=1
 | Alert | Condition | Severity | Action |
 |---|---|---|---|
 | `EvalHubNightlySafetyBreach` | CronJob `Failed` immediately | warning | Check pod logs for `THRESHOLD BREACH` table |
-| `EvalHubNightlyEvalMissed` | No successful run in 36h | warning | Check CronJob: `oc get cronjob nightly-safety-eval -n project1` |
+| `EvalHubNightlyEvalMissed` | No successful run in 36h | warning | Check CronJob: `oc get cronjob nightly-safety-eval -n hermes-sandbox` |
 
 ---
 
@@ -228,7 +228,7 @@ which is set when the CronJob's threshold-check script exits non-zero.
 |---|---|---|
 | `evalhub-metrics` target missing from user-workload Prometheus | ServiceMonitor not picked up | Check SM labels match: `app=eval-hub,component=metrics,instance=evalhub` |
 | PrometheusRule not evaluated | Missing `openshift.io/prometheus-rule-evaluation-scope: leaf-prometheus` label | Add the label to the PrometheusRule metadata |
-| `EvalHubNightlySafetyBreach` never fires after job fails | Rule is in `project1` not `openshift-monitoring` | `kube_job_status_failed` is only in cluster Prometheus — apply `23-alerting-cluster.yaml` |
+| `EvalHubNightlySafetyBreach` never fires after job fails | Rule is in `hermes-sandbox` not `openshift-monitoring` | `kube_job_status_failed` is only in cluster Prometheus — apply `23-alerting-cluster.yaml` |
 | Alert fires for old completed jobs | `kube_job_status_failed` persists until job is deleted | CronJob history limit: `successfulJobsHistoryLimit: 7`, `failedJobsHistoryLimit: 3` |
 
 ---
@@ -301,7 +301,7 @@ After this, **Observe > Dashboards (Perses)** appears in the OpenShift Console.
 No ServiceAccount, token Secret, or RBAC is needed. The Perses instance uses
 `kubernetesAuth` (enabled by COO in the `Perses` CR) to forward the user's
 own OpenShift session token when proxying requests to the Thanos querier.
-The user viewing the dashboard must have `view` permission on `project1`.
+The user viewing the dashboard must have `view` permission on `hermes-sandbox`.
 
 #### 3. Apply datasource and dashboard
 
@@ -313,14 +313,14 @@ oc apply -f 25-perses-dashboard.yaml
 Verify:
 
 ```bash
-oc get persesdatasource evalhub-user-workload-monitoring -n project1 \
+oc get persesdatasource evalhub-user-workload-monitoring -n hermes-sandbox \
   -o jsonpath='{.status.conditions[*].message}'
 # Expected: ...created successfully ...reconciled successfully
 ```
 
 #### 5. View in the console
 
-OpenShift Console → **Observe → Dashboards (Perses)** → select namespace `project1`
+OpenShift Console → **Observe → Dashboards (Perses)** → select namespace `hermes-sandbox`
 → select **EvalHub — Continuous Evaluation & Drift Monitoring**.
 
 ![EvalHub Continuous Evaluation & Drift Monitoring dashboard on RHOAI 3.5 EA2](assets/evalhub-continuous-eval-drift-3_5ea2.png)

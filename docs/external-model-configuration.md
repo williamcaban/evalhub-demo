@@ -5,8 +5,8 @@ deployed GPU model. The current workshop cluster exposes:
 
 | Model | OpenAI-compatible base URL |
 |---|---|
-| `gpt-oss-120b` | `https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1` |
-| `qwen3-235b` | `https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/qwen3-235b/v1` |
+| `qwen38-27b` | `https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1` |
+| `qwen38-27b` | `https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1` |
 
 The model-specific `/external-models/<model>/v1` path is important. The plain
 `/v1` gateway path requires an `X-Gateway-Model-Name` header, which EvalHub's
@@ -21,8 +21,8 @@ logs:
 ```bash
 TOKEN_FILE="$(mktemp /tmp/maas-model-token.XXXXXX)"
 trap 'rm -f "$TOKEN_FILE"' EXIT
-oc create token evalhub-user-sa -n project1 --duration=720h > "$TOKEN_FILE"
-oc create secret generic maas-model-token -n project1 \
+oc create token evalhub-user-sa -n hermes-sandbox --duration=720h > "$TOKEN_FILE"
+oc create secret generic maas-model-token -n hermes-sandbox \
   --from-file=api-key="$TOKEN_FILE" \
   --from-file=OPENAI_API_KEY="$TOKEN_FILE" \
   --dry-run=client -o yaml | oc apply -f -
@@ -38,8 +38,8 @@ Set the model URL, model name, and Secret reference in every job config:
 
 ```yaml
 model:
-  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
-  name: gpt-oss-120b
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
   auth:
     secret_ref: maas-model-token
 ```
@@ -48,13 +48,13 @@ To switch to Qwen, change both `url` and `name`:
 
 ```yaml
 model:
-  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/qwen3-235b/v1
-  name: qwen3-235b
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
   auth:
     secret_ref: maas-model-token
 ```
 
-The runnable files under `evals/` currently default to `gpt-oss-120b`.
+The runnable files under `evals/` currently default to `qwen38-27b`.
 
 ## Validate the gateway before submitting an evaluation
 
@@ -62,11 +62,11 @@ Use a short-lived service-account token and a minimal request. The token value
 should never be echoed:
 
 ```bash
-TOKEN="$(oc create token evalhub-user-sa -n project1 --duration=10m)"
-curl -skS "https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1/chat/completions" \
+TOKEN="$(oc create token evalhub-user-sa -n hermes-sandbox --duration=10m)"
+curl -skS "https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1/chat/completions" \
   -H "Authorization: Bearer ${TOKEN}" \
   -H 'Content-Type: application/json' \
-  -d '{"model":"gpt-oss-120b","messages":[{"role":"user","content":"Reply with OK only."}],"max_tokens":4}'
+  -d '{"model":"qwen38-27b","messages":[{"role":"user","content":"Reply with OK only."}],"max_tokens":4}'
 ```
 
 Repeat with the Qwen URL and model name when switching models.
@@ -74,11 +74,11 @@ Repeat with the Qwen URL and model name when switching models.
 ## Submit a config-based evaluation
 
 ```bash
-EVALHUB_ROUTE="$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')"
-TOKEN="$(oc create token evalhub-user-sa -n project1 --duration=1h)"
+EVALHUB_ROUTE="$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')"
+TOKEN="$(oc create token evalhub-user-sa -n hermes-sandbox --duration=1h)"
 evalhub config set base_url "https://${EVALHUB_ROUTE}"
 evalhub config set token "$TOKEN"
-evalhub config set tenant project1
+evalhub config set tenant hermes-sandbox
 evalhub config set insecure true
 evalhub eval run --config evals/gsm8k.yaml --wait
 ```
@@ -92,7 +92,7 @@ external model requires authentication.
 
 - The demo cluster has no NVIDIA GPU capacity, so do not apply the local
   `06-qwen3-judge.yaml` manifest unless GPU nodes are added.
-- Keep the EvalHub model Secret in `project1`; the EvalHub controller resolves
+- Keep the EvalHub model Secret in `hermes-sandbox`; the EvalHub controller resolves
   `model.auth.secret_ref` there when creating evaluation jobs.
 - MLflow workspace isolation is enabled, but RHOAI 3.5 has a documented
   EvalHub defect where jobs with an `experiment` block can fail while saving
@@ -102,7 +102,7 @@ external model requires authentication.
   validation and treat MLflow-backed runs as unavailable.
 - A tracked job must contain only the documented experiment shape:
   `experiment: { name: <experiment-name> }`. The tenant/workspace comes from
-  the EvalHub deployment (`MLFLOW_WORKSPACE=project1`) and MLflow RBAC; do not
+  the EvalHub deployment (`MLFLOW_WORKSPACE=hermes-sandbox`) and MLflow RBAC; do not
   add a second workspace field to the job request.
 - The MaaS gateway's provider credential Secret is not the same thing as the
   client credential used by EvalHub. The provider Secret in `external-models`

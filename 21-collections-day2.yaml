@@ -1,6 +1,6 @@
 # Day 2 Operations Collections
 # Registers collections used for continuous evaluation and drift monitoring.
-# Apply as cluster-admin — operator copies to project1 automatically.
+# Apply as cluster-admin — operator copies to hermes-sandbox automatically.
 #
 # After applying, add collection IDs to spec.collections in 04-evalhub-cr.yaml
 # and re-apply it. Then verify stable string IDs are present:
@@ -56,8 +56,8 @@ data:
         provider_id: inspect
         weight: 2.0
         parameters:
-          auditor_model: qwen3-235b
-          judge_model: qwen3-235b
+          auditor_model: qwen38-27b
+          judge_model: qwen38-27b
           max_samples: 10
           max_turns: 5
         primary_score:
@@ -69,8 +69,8 @@ data:
         provider_id: inspect
         weight: 2.0
         parameters:
-          auditor_model: qwen3-235b
-          judge_model: qwen3-235b
+          auditor_model: qwen38-27b
+          judge_model: qwen38-27b
           max_samples: 10
           max_turns: 4
         primary_score:
@@ -82,8 +82,8 @@ data:
         provider_id: inspect
         weight: 1.5
         parameters:
-          auditor_model: qwen3-235b
-          judge_model: qwen3-235b
+          auditor_model: qwen38-27b
+          judge_model: qwen38-27b
           max_samples: 10
           max_turns: 5
         primary_score:
@@ -95,8 +95,8 @@ data:
         provider_id: inspect
         weight: 1.5
         parameters:
-          auditor_model: qwen3-235b
-          judge_model: qwen3-235b
+          auditor_model: qwen38-27b
+          judge_model: qwen38-27b
           max_samples: 10
           max_turns: 5
         primary_score:

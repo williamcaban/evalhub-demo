@@ -1,15 +1,15 @@
 # GuideLLM quick performance snapshot — 5 requests, synthetic 256/128 token scenario
-# Confirms throughput, TTFT, and ITL against gpt-oss-120b on L4 GPU.
+# Confirms throughput, TTFT, and ITL against qwen38-27b on L4 GPU.
 #
 # Usage:
 #   evalhub eval run --config evals/guidellm-quick.yaml --wait
 
-name: gpt-oss-guidellm-quick
+name: qwen38-guidellm-quick
 experiment:
   name: evalhub-performance-evals
 model:
-  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
-  name: gpt-oss-120b
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
   auth:
     secret_ref: maas-model-token
 benchmarks:

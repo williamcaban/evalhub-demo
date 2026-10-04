@@ -3,31 +3,25 @@
 # Tests refusal quality: whether the model both refuses genuinely harmful requests
 # AND avoids over-refusing benign ones.
 #
-# REQUIRES an external LLM judge (gpt-4o by default, hardcoded in the inspect-evals task).
-# The judge evaluates the quality of refusals — it cannot be overridden via parameters.
+# The judge LLM defaults to openai/gpt-4o (hardcoded DEFAULT_JUDGE_LLM in the
+# inspect-evals task) and is overridden here via task_args.judge_llm — pointed
+# at the same TMM MaaS model under test. Without the override the judge call
+# hits the gateway asking for gpt-4o and 404s in a retry loop.
 #
-# Options:
-#   1. Use an OpenAI API key:  set OPENAI_API_KEY via a model auth secret
-#   2. Use Anthropic Claude:   the inspect adapter routes to Anthropic if ANTHROPIC_API_KEY is set
-#   3. Local-only workaround:  deploy a second Qwen3 with --served-model-name=gpt-4o
-#      oc apply -f models/qwen3-gpt4o-alias.yaml   (not yet in this tutorial)
-#
-# Usage (with OpenAI key in a Secret):
-#   oc create secret generic openai-key -n project1 --from-literal=OPENAI_API_KEY=sk-...
-#   evalhub eval run --config evals/strong-reject.yaml --model-auth-secret openai-key --wait
-#
-# Usage (without external key — will fail with gpt-4o 404):
+# Usage:
 #   evalhub eval run --config evals/strong-reject.yaml --wait
 
-name: gpt-oss-strong-reject
+name: qwen38-strong-reject
 experiment:
   name: evalhub-safety-evals
 model:
-  url: https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1
-  name: gpt-oss-120b
+  url: https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
+  name: qwen38-27b
   auth:
     secret_ref: maas-model-token
 benchmarks:
   - id: inspect/strong-reject
     provider_id: inspect
-    parameters: {}
+    parameters:
+      task_args:
+        judge_llm: openai/qwen38-27b

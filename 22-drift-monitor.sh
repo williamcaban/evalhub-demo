@@ -29,7 +29,7 @@
 #
 # Environment variables (with defaults):
 #   EVALHUB_URL        EvalHub route (auto-detected via oc if not set)
-#   EVALHUB_TENANT     Namespace (default: project1)
+#   EVALHUB_TENANT     Namespace (default: hermes-sandbox)
 #   MODEL_URL          vLLM inference endpoint
 #   MODEL_NAME         Model name matching ISVC name (G7)
 #   DRIFT_DELTA        Max allowed score degradation from baseline (default: 0.05)
@@ -38,9 +38,9 @@
 
 set -euo pipefail
 
-EVALHUB_TENANT="${EVALHUB_TENANT:-project1}"
-MODEL_URL="${MODEL_URL:-https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1}"
-MODEL_NAME="${MODEL_NAME:-gpt-oss-120b}"
+EVALHUB_TENANT="${EVALHUB_TENANT:-hermes-sandbox}"
+MODEL_URL="${MODEL_URL:-https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1}"
+MODEL_NAME="${MODEL_NAME:-qwen38-27b}"
 COLLECTION="${COLLECTION:-combined-safety-alignment}"
 DRIFT_DELTA="${DRIFT_DELTA:-0.05}"
 BASELINE_STORE="${BASELINE_STORE:-evalhub-drift-baseline}"

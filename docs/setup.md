@@ -92,7 +92,7 @@ echo "MLflow UI: https://$(oc get route mlflow -n redhat-ods-applications \
   -o jsonpath='{.spec.host}')/mlflow"
 ```
 
-> MLflow uses workspace isolation. Evaluations from `project1` appear under the `project1` workspace — select it from the workspace dropdown in the UI.
+> MLflow uses workspace isolation. Evaluations from `hermes-sandbox` appear under the `hermes-sandbox` workspace — select it from the workspace dropdown in the UI.
 
 ---
 
@@ -101,10 +101,10 @@ echo "MLflow UI: https://$(oc get route mlflow -n redhat-ods-applications \
 ```bash
 oc apply -f 01-namespace.yaml
 # Required by the RHOAI 3.5 EvalHub multi-tenancy guide.
-oc label namespace project1 evalhub.trustyai.opendatahub.io/tenant= --overwrite
-oc label namespace project1 opendatahub.io/generated-namespace=true --overwrite
+oc label namespace hermes-sandbox evalhub.trustyai.opendatahub.io/tenant= --overwrite
+oc label namespace hermes-sandbox opendatahub.io/generated-namespace=true --overwrite
 # Required when using the Kubernetes-backed MLflow workspace provider.
-oc label namespace project1 opendatahub.io/global-mlflow-workspace=project1 --overwrite
+oc label namespace hermes-sandbox opendatahub.io/global-mlflow-workspace=hermes-sandbox --overwrite
 oc apply -f 02-rbac.yaml
 oc apply -f 04-evalhub-cr.yaml          # includes spec.providers + spec.collections
 oc apply -f 05-allow-egress-netpol.yaml  # allows eval job pods to reach HuggingFace Hub
@@ -125,17 +125,17 @@ Or use the deployment script for steps 2–3:
 
 ```bash
 oc wait deployment/evalhub \
-  -n project1 \
+  -n hermes-sandbox \
   --for=condition=Available --timeout=120s
 ```
 
-Verify provider and collection ConfigMaps were copied into `project1`:
+Verify provider and collection ConfigMaps were copied into `hermes-sandbox`:
 
 ```bash
-oc get configmap -n project1 | grep evalhub-provider
+oc get configmap -n hermes-sandbox | grep evalhub-provider
 # Expected: evalhub-provider-inspect, evalhub-provider-garak, evalhub-provider-guidellm, …
 
-oc get configmap -n project1 | grep evalhub-collection
+oc get configmap -n hermes-sandbox | grep evalhub-collection
 # Expected: evalhub-collection-combined-reasoning, evalhub-collection-garak-red-team, …
 ```
 
@@ -156,10 +156,10 @@ uv sync
 
 # Configure for this cluster (run after each oc login or when the token expires)
 uv run evalhub config set base_url \
-  "https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')"
+  "https://$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')"
 uv run evalhub config set token \
-  "$(oc create token evalhub-user-sa -n project1 --duration=8h)"
-uv run evalhub config set tenant "project1"
+  "$(oc create token evalhub-user-sa -n hermes-sandbox --duration=8h)"
+uv run evalhub config set tenant "hermes-sandbox"
 uv run evalhub config set insecure true   # self-signed cluster cert
 
 # Verify
@@ -189,17 +189,17 @@ oc apply -f 06-qwen3-judge.yaml
 
 # Wait for predictor pod (image pull + vLLM startup: 3–5 min on first run)
 oc wait pod \
-  -l serving.kserve.io/inferenceservice=qwen3-8b-fp8 \
-  -n project1 \
+  -l serving.kserve.io/inferenceservice=qwen38-27b \
+  -n hermes-sandbox \
   --for=condition=Ready --timeout=600s
 
-oc get inferenceservice qwen3-8b-fp8 -n project1
+oc get inferenceservice qwen38-27b -n hermes-sandbox
 # Expected: READY=True
 ```
 
 > **Critical — port 8080**: KServe predictor services are headless. Always use `:8080`:
 > ```
-> http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1
+> https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1
 > ```
 
 > **Model name**: `model.name` in eval job specs must exactly match the ISVC name. ISVC names cannot contain dots (`llama-3.2-3b` → `llama-32-3b`).
@@ -235,7 +235,7 @@ uv run evalhub eval run --config evals/guidellm-quick.yaml --wait
 
 This example runs 10 OpenBookQA samples through the LightEval provider. The
 configuration includes an MLflow experiment so the completed result can be
-tracked in the `project1` workspace.
+tracked in the `hermes-sandbox` workspace.
 
 ```bash
 uv run evalhub eval run --config evals/openbookqa.yaml --wait
@@ -251,7 +251,7 @@ Monitor jobs:
 uv run evalhub eval status                       # list recent jobs
 uv run evalhub eval results <job-id>             # metric table
 uv run evalhub eval results <job-id> --format json
-oc get pods -n project1 -w | grep -v "evalhub\|qwen3"   # watch eval pods
+oc get pods -n hermes-sandbox -w | grep -v "evalhub\|qwen3"   # watch eval pods
 ```
 
 ---
@@ -269,18 +269,18 @@ uv run evalhub eval run \
 
 # Legacy local-inference example (requires GPU and model Secret adaptation)
 uv run evalhub collections run combined-safety-alignment \
-  --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-  --model-name "qwen3-8b-fp8"
+  --model-url "https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+  --model-name "qwen38-27b"
 
 # Legacy local-inference example (requires GPU and model Secret adaptation)
 uv run evalhub collections run garak-red-team \
-  --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-  --model-name "qwen3-8b-fp8"
+  --model-url "https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+  --model-name "qwen38-27b"
 
 # Legacy local-inference example (requires GPU and model Secret adaptation)
 uv run evalhub collections run guidellm-perf \
-  --model-url "http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080/v1" \
-  --model-name "qwen3-8b-fp8"
+  --model-url "https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+  --model-name "qwen38-27b"
 ```
 
 Available Inspect AI collections (all confirmed working via Petri code path):
@@ -304,10 +304,10 @@ Quick start for Day 2:
 # Register Day 2 collection and apply CronJob only after upgrading past the
 # RHOAI 3.5 MLflow result-commit defect.
 oc apply -f 21-collections-day2.yaml
-oc create secret generic evalhub-runner-config -n project1 \
-  --from-literal=evalhub_url="https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')" \
-  --from-literal=model_url="https://maas.apps.cluster-2n2gw.dyn.redhatworkshops.io/external-models/gpt-oss-120b/v1" \
-  --from-literal=model_name="gpt-oss-120b"
+oc create secret generic evalhub-runner-config -n hermes-sandbox \
+  --from-literal=evalhub_url="https://$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')" \
+  --from-literal=model_url="https://maas.apps.ocp.cloud.rhai-tmm.dev/prelude-maas/qwen38-27b/v1" \
+  --from-literal=model_name="qwen38-27b"
 oc apply -f 21-continuous-eval-cronjob.yaml
 
 # Record a baseline after a known-good run
@@ -379,8 +379,8 @@ MLflow-backed nightly or drift workflows.
 | `404` on `/v1/completions` | `model.name` doesn't match ISVC name (G7) | Match names exactly; no dots allowed in ISVC names |
 | inspect-evals fail with `BadRequestError` | Responses API, vLLM unsupported (G9) | Use Petri benchmarks only |
 | `Unknown GenerateConfig field: base_url` | Needs inspect-ai ≥ 0.4.0 (G8) | Use single-endpoint mode |
-| Provider ConfigMaps missing from project1 | Operator hasn't reconciled | `oc delete pod -n redhat-ods-applications -l control-plane=trustyai-service-operator-controller-manager` |
-| `401 Unauthorized` on EvalHub API | Token expired | `uv run evalhub config set token "$(oc create token evalhub-user-sa -n project1 --duration=8h)"` |
+| Provider ConfigMaps missing from hermes-sandbox | Operator hasn't reconciled | `oc delete pod -n redhat-ods-applications -l control-plane=trustyai-service-operator-controller-manager` |
+| `401 Unauthorized` on EvalHub API | Token expired | `uv run evalhub config set token "$(oc create token evalhub-user-sa -n hermes-sandbox --duration=8h)"` |
 | `400 Bad Request: unable_to_authorize_request` | RBAC missing | `oc apply -f 02-rbac.yaml` |
 | `400 Workspace context is required` | RHOAI 3.5 EvalHub MLflow result-commit defect | Omit `experiment` for runtime validation; upgrade before MLflow-backed runs |
 | Collection runs show UUID IDs | Collections created via BYOP API | Re-register via `20-collections-system.yaml` + `oc apply -f 04-evalhub-cr.yaml` |
@@ -393,26 +393,26 @@ MLflow-backed nightly or drift workflows.
 
 ```bash
 # Remove Day 2 resources (if deployed)
-oc delete cronjob nightly-safety-eval -n project1 --ignore-not-found
-oc delete secret evalhub-runner-config -n project1 --ignore-not-found
-oc delete configmap evalhub-drift-baseline -n project1 --ignore-not-found
-oc delete deployment prometheus-pushgateway -n project1 --ignore-not-found
-oc delete svc prometheus-pushgateway -n project1 --ignore-not-found
-oc delete servicemonitor evalhub-pushgateway -n project1 --ignore-not-found
+oc delete cronjob nightly-safety-eval -n hermes-sandbox --ignore-not-found
+oc delete secret evalhub-runner-config -n hermes-sandbox --ignore-not-found
+oc delete configmap evalhub-drift-baseline -n hermes-sandbox --ignore-not-found
+oc delete deployment prometheus-pushgateway -n hermes-sandbox --ignore-not-found
+oc delete svc prometheus-pushgateway -n hermes-sandbox --ignore-not-found
+oc delete servicemonitor evalhub-pushgateway -n hermes-sandbox --ignore-not-found
 
 # Remove alerting rules
-oc delete prometheusrule evalhub-availability-alerts -n project1 --ignore-not-found
+oc delete prometheusrule evalhub-availability-alerts -n hermes-sandbox --ignore-not-found
 oc delete prometheusrule evalhub-eval-job-alerts -n openshift-monitoring --ignore-not-found
 
 # Remove Perses dashboard (if deployed)
-oc delete persesdashboard evalhub-continuous-eval -n project1 --ignore-not-found
-oc delete persesdatasource evalhub-user-workload-monitoring -n project1 --ignore-not-found
+oc delete persesdashboard evalhub-continuous-eval -n hermes-sandbox --ignore-not-found
+oc delete persesdatasource evalhub-user-workload-monitoring -n hermes-sandbox --ignore-not-found
 
 # Remove EvalHub tenant resources
 oc delete -f 06-qwen3-judge.yaml --ignore-not-found
 oc delete -f 04-evalhub-cr.yaml
 oc delete -f 02-rbac.yaml
-oc delete namespace project1
+oc delete namespace hermes-sandbox
 
 # Remove community providers and collections (cluster-admin)
 for f in 10-inspect-provider.yaml 13-garak-provider.yaml 14-ruler-provider.yaml \

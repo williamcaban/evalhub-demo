@@ -1,52 +1,66 @@
-apiVersion: trustyai.opendatahub.io/v1alpha1
+# EvalHub CR — RHOAI 3.5.1 (trustyai.opendatahub.io/v1)
+#
+# Deployed on the wbos cluster (hermes-sandbox namespace) with models served
+# by the TMM cluster MaaS gateway.
+#
+# Schema notes (verified against the wbos cluster with `oc explain`, 2026-10-04):
+#   - apiVersion is trustyai.opendatahub.io/v1 on RHOAI 3.5.1 (the v1alpha1
+#     used by earlier 3.5 EA builds is superseded; the cluster serves v1).
+#   - spec.database is REQUIRED: the operator will not start the service
+#     without an explicit database configuration.
+#   - spec.tenancy: "single" serves only its own namespace — correct for a
+#     per-team demo instance. "multi" (default) serves tenant namespaces
+#     labelled evalhub.trustyai.opendatahub.io/tenant.
+#   - spec.mcp optionally enables an MCP server for this instance.
+#
+# Provider and collection ConfigMaps must exist in redhat-ods-applications
+# (they do on wbos, applied by the cluster-admin — see docs/setup.md Step 1b).
+apiVersion: trustyai.opendatahub.io/v1
 kind: EvalHub
 metadata:
   name: evalhub
-  namespace: project1
+  namespace: hermes-sandbox
 spec:
-  # Database: SQLite in-memory (no Secret required).
-  # For persistent deployments, use type: postgresql with a Secret.
+  # Database (required in v1 schema). SQLite for the lightweight demo;
+  # switch to postgresql + secret for persistent deployments.
   database:
     type: sqlite
 
-  # Providers to enable.
-  # The operator automatically copies matching provider ConfigMaps from
-  # redhat-ods-applications into project1 — no manual ConfigMap creation needed.
-  # Provider IDs use dashes (lm-evaluation-harness, not lm_evaluation_harness).
-  # Collections registered via operator ConfigMap — stable string IDs.
-  # Tenant collections created with `evalhub collections create` get UUIDs instead.
-  collections:
-  - combined-reasoning
-  - combined-knowledge
-  - combined-coding
-  - combined-safety-alignment
-  - garak-red-team
-  - guidellm-perf
-  - nightly-safety-check
+  # Per-team demo instance: serve only this namespace.
+  tenancy: single
 
+  # Providers enabled — each name must match a provider-name label on a
+  # ConfigMap in redhat-ods-applications. Verified present on wbos:
+  #   garak, inspect, lighteval, lm-evaluation-harness, ragas, guidellm,
+  #   deepeval, ibm-clear
   providers:
   - lighteval
   - lm-evaluation-harness
   - ibm-clear
   - inspect
   - garak
-  - ruler
   - ragas
   - guidellm
-  - nemo-guardrails
+  - deepeval
+
+  # Collections enabled — each name must match a collection-name label.
+  # Verified present on wbos: safety-and-fairness-v1, toxicity-and-ethical-principles,
+  # reasoning-v1, coding-v1, long-context-v1, instruction-following-v1,
+  # standard-llm-evals-v1, model-validation, leaderboard-v2
+  collections:
+  - safety-and-fairness-v1
+  - toxicity-and-ethical-principles
+  - reasoning-v1
+  - coding-v1
+  - long-context-v1
+  - instruction-following-v1
+  - standard-llm-evals-v1
+  - model-validation
 
   # MLflow integration.
-  # The operator already sets MLFLOW_TOKEN_PATH (projected SA token for auth),
-  # MLFLOW_CA_CERT_PATH (service CA for TLS), and MLFLOW_WORKSPACE=project1.
-  # We only need to set MLFLOW_TRACKING_URI to activate MLflow logging.
-  #
-  # The EvalHub controller also automatically creates:
-  #   - RoleBinding for the evalhub-service SA with the
-  #     trustyai-service-operator-evalhub-mlflow-access ClusterRole
-  #   → No manual MLflow RBAC is needed.
-  #
-  # MLflow auth: kubernetes-namespaced plugin using the projected SA token.
-  # MLflow workspace: project1 (matches the EvalHub CR namespace).
+  # The operator sets MLFLOW_TOKEN_PATH (projected SA token), MLFLOW_CA_CERT_PATH
+  # (service CA) and MLFLOW_WORKSPACE=<namespace>. We only set the tracking URI.
+  # MLflow is already deployed on wbos in redhat-ods-applications (v3.14.0).
   env:
   - name: MLFLOW_TRACKING_URI
     value: "https://mlflow.redhat-ods-applications.svc:8443/mlflow"

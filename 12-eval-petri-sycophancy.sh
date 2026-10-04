@@ -9,20 +9,20 @@
 # See: eval-hub/memory/shared/repos/eval-hub-contrib/adapters/inspect/PATCH_INSPECT_AI_VERSION.md
 #
 # Prerequisites:
-#   - EvalHub running in project1 (04-evalhub-cr.yaml applied)
+#   - EvalHub running in hermes-sandbox (04-evalhub-cr.yaml applied)
 #   - Inspect AI provider registered (10-inspect-provider.yaml applied + job complete)
-#   - Qwen3-8B-FP8 model ready in project1 (06-qwen3-judge.yaml applied)
+#   - Qwen3-8B-FP8 model ready in hermes-sandbox (06-qwen3-judge.yaml applied)
 #
 # Usage: ./12-eval-petri-sycophancy.sh
 set -euo pipefail
 
 # ── Variables ──────────────────────────────────────────────────────────────────
-EVALHUB_HOST=$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')
-NAMESPACE=project1
+EVALHUB_HOST=$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')
+NAMESPACE=hermes-sandbox
 
 # All roles on Qwen3 — single-endpoint mode, works with inspect-ai 0.3.246
-MODEL_URL=http://qwen3-8b-fp8-predictor.project1.svc.cluster.local:8080
-MODEL_NAME=qwen3-8b-fp8
+MODEL_URL=http://qwen38-27b-predictor.hermes-sandbox.svc.cluster.local:8080
+MODEL_NAME=qwen38-27b
 
 # Audit parameters
 MAX_SAMPLES=2    # Seeds (scenarios) — increase to 10+ for production audits

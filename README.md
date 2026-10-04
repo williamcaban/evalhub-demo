@@ -26,7 +26,7 @@ Console. Tested on a single NVIDIA L4 GPU with Qwen3-8B-FP8 as the judge model.
 | Perses dashboard | `25-perses-*.yaml`, `26-*` | COO install + dashboard for OpenShift Console |
 | Documentation | `docs/` | Step-by-step guides, monitoring setup, workshop |
 
-For external MaaS models (including `gpt-oss-120b` and `qwen3-235b`), see
+For external MaaS models (including `qwen38-27b` and `qwen38-27b`), see
 [`docs/external-model-configuration.md`](docs/external-model-configuration.md).
 
 ---
@@ -37,8 +37,8 @@ For external MaaS models (including `gpt-oss-120b` and `qwen3-235b`), see
 redhat-ods-applications
   MLflow Server ←── SA token auth (TLS: svc:8443)
 
-project1
-  EvalHub Server  ── route: evalhub-project1.apps.<cluster>
+hermes-sandbox
+  EvalHub Server  ── route: evalhub-hermes-sandbox.apps.<cluster>
   ├── Providers: lm-evaluation-harness, lighteval, ibm-clear (operator)
   │             inspect, garak, guidellm, ruler, ragas, nemo-guardrails (ConfigMap)
   ├── Collections: combined-safety-alignment, nightly-safety-check, ...
@@ -67,9 +67,9 @@ openshift-monitoring / openshift-user-workload-monitoring
 
 # 3. Configure the CLI and run your first eval
 uv sync
-uv run evalhub config set base_url "https://$(oc get route evalhub -n project1 -o jsonpath='{.spec.host}')"
-uv run evalhub config set token "$(oc create token evalhub-user-sa -n project1 --duration=8h)"
-uv run evalhub config set tenant "project1"
+uv run evalhub config set base_url "https://$(oc get route evalhub -n hermes-sandbox -o jsonpath='{.spec.host}')"
+uv run evalhub config set token "$(oc create token evalhub-user-sa -n hermes-sandbox --duration=8h)"
+uv run evalhub config set tenant "hermes-sandbox"
 uv run evalhub health
 uv run evalhub eval run --config evals/arc-easy.yaml --wait
 ```

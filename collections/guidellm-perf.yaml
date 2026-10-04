@@ -11,12 +11,12 @@
 #   requests and sweep profile, RPS is low by design. Threshold 1.0 applies
 #   to production workloads with concurrent requests; for 5-request smoke tests
 #   the meaningful metric is output_tokens_per_second ≥ 10.0.
-#   Observed on qwen3-8b-fp8 / 1× L4: RPS=0.128 (5 sync requests), OTS=16.45.
+#   Observed on qwen38-27b / 1× L4: RPS=0.128 (5 sync requests), OTS=16.45.
 #
 # sweep: finds optimal concurrency; primary metric output_tokens_per_second.
 #   Threshold 10.0 = minimum viable inference throughput for interactive use cases
 #   (roughly supports 1 concurrent user at a comfortable response speed).
-#   Confirmed on qwen3-8b-fp8 / 1× L4: OTS=16.45.
+#   Confirmed on qwen38-27b / 1× L4: OTS=16.45.
 #
 # concurrent: fixed-concurrency stress. Same threshold 10.0.
 #
@@ -33,7 +33,7 @@ description: >
   GuideLLM inference performance collection — three load profiles with synthetic
   256-input/128-output token workload (chat-scale). quick_perf_test (5 requests,
   requests_per_second gate=1.0 for production concurrent use; OTS=16.45 observed on
-  qwen3-8b-fp8/L4, weight 1.0), sweep (auto-discover optimal concurrency,
+  qwen38-27b/L4, weight 1.0), sweep (auto-discover optimal concurrency,
   output_tokens_per_second>=10.0 = minimum viable interactive throughput, weight 2.0),
   concurrent (fixed-concurrency stress, output_tokens_per_second>=10.0, weight 2.0).
   Global PASS: sweep output_tokens_per_second>=10.0.
@@ -55,7 +55,7 @@ benchmarks:
 
   # sweep: auto-discover optimal concurrency. Primary performance gate.
   # output_tokens_per_second ≥ 10.0 = minimum viable interactive throughput.
-  # Observed on qwen3-8b-fp8 / 1× L4: OTS=16.45 ✅
+  # Observed on qwen38-27b / 1× L4: OTS=16.45 ✅
   - id: sweep
     provider_id: guidellm
     weight: 2.0
