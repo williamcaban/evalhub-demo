@@ -7,7 +7,17 @@
 #   1. promptfoo-redteam  — safety: promptfoo OWASP red-team plugins
 #   2. owasp_llm_top10    — safety: garak OWASP LLM top 10 scan
 #   3. promptfoo-eval     — capability: assertion-based regression suite
-#   4. ragas_rag_default  — RAG: faithfulness/relevancy on bundled dataset
+#   4. ragas_rag_default  — RAG: LLM-only metrics on bundled dataset (ragas-latest)
+#
+# ragas notes (verified 2026-10-04):
+#   - Uses the ragas-latest BYOP provider (:latest image) — the OOTB ragas
+#     provider is pinned to v0.5.0 where collections metrics fail LLM
+#     validation ("Collections metrics only support modern InstructorLLM").
+#   - LLM-only metrics only: answer_relevancy/answer_correctness/
+#     semantic_similarity need an embeddings endpoint, and the sidecar proxy
+#     targets a single model path with no /embeddings route (verified 404).
+#   - Judge calls are long under concurrent gateway load; the sidecar model
+#     proxy deadline is 30s — sequence this collection after other runs.
 #
 # Run:
 #   evalhub collections run promptfoo-combined-v1 \
@@ -78,10 +88,18 @@ benchmarks:
 
   # ── RAG ─────────────────────────────────────────────────────────────────
   - id: ragas_rag_default
-    provider_id: ragas
+    provider_id: 322683d2-aa7c-4172-9c8e-4213d14441a3
     weight: 1.0
     parameters:
       max_workers: 1
+      max_tokens: 512
       data_path: /bundled-data/dataset.jsonl
+      metrics:
+        - faithfulness
+        - context_precision
+        - context_recall
+        - context_entity_recall
+        - factual_correctness
+        - noise_sensitivity
     primary_score: {metric: faithfulness, lower_is_better: false}
     pass_criteria: {threshold: 0.50}
